@@ -18,6 +18,7 @@ type appConfig struct {
 type MCPCommandConfig struct {
 	WebDriverPort *int    `yaml:"web_driver_port"`
 	WebDriverPath *string `yaml:"web_driver_path"`
+	WebDriverLog  *string `yaml:"web_driver_log"`
 	UsePandoc     *bool   `yaml:"use_pandoc"`
 	SearchEngine  *string `yaml:"search_engine"`
 	SearchCache   *string `yaml:"search_cache"`
@@ -119,6 +120,7 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 		applyCommonConfig(cmd, userConfig.MCP)
 	}
 
+	// ENV loading happens after loading the config from a file
 	applyHTTPMasterKeyEnv(cmd)
 }
 
@@ -132,6 +134,9 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPCommandConfig) {
 	}
 	if cfg.WebDriverPath != nil && !cmd.Flags().Changed("wd-path") {
 		webDriverPath = *cfg.WebDriverPath
+	}
+	if cfg.WebDriverPath != nil && !cmd.Flags().Changed("wd-log") {
+		webDriverLog = *cfg.WebDriverLog
 	}
 	if cfg.UsePandoc != nil && !cmd.Flags().Changed("pandoc") {
 		usePandoc = *cfg.UsePandoc

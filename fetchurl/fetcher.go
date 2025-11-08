@@ -121,13 +121,14 @@ func (w *WebFetcher) Start() error {
 
 	args := []string{
 		"--headless",
-		"--no-sandbox",
 		"--disable-dev-shm-usage",
 		"--disable-gpu",
+		// "--no-sandbox",
 	}
 
 	if w.opts.WebDriverLogging != "" {
 		args = append(args, fmt.Sprintf("--log-path=%s", w.opts.WebDriverLogging))
+		args = append(args, "--log-level=DEBUG")
 	}
 
 	w.opts.Logger.Debug(fmt.Sprintf("%v", args))
