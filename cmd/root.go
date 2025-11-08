@@ -31,6 +31,9 @@ var debugCmd = &cobra.Command{
 				if userConfig.MCP.WebDriverPath != nil {
 					fmt.Printf("  web_driver_path: %s\n", *userConfig.MCP.WebDriverPath)
 				}
+				if userConfig.MCP.WebDriverLog != nil {
+					fmt.Printf("  web_driver_log : %s\n", *userConfig.MCP.WebDriverLog)
+				}
 				if userConfig.MCP.UsePandoc != nil {
 					fmt.Printf("  use_pandoc     : %t\n", *userConfig.MCP.UsePandoc)
 				}
@@ -44,10 +47,13 @@ var debugCmd = &cobra.Command{
 			if userConfig.HTTP != nil {
 				fmt.Println("[http]")
 				if userConfig.HTTP.Addr != nil {
-					fmt.Printf("  addr: %s\n", *userConfig.HTTP.Addr)
+					fmt.Printf("  addr.     : %s\n", *userConfig.HTTP.Addr)
 				}
 				if userConfig.HTTP.Port != nil {
-					fmt.Printf("  port: %d\n", *userConfig.HTTP.Port)
+					fmt.Printf("  port.     : %d\n", *userConfig.HTTP.Port)
+				}
+				if userConfig.HTTP.MasterKey != nil {
+					fmt.Printf("  master_key: ********\n")
 				}
 			}
 			if userConfig.GoogleCustom != nil {
@@ -78,6 +84,7 @@ var debugCmd = &cobra.Command{
 		fmt.Println("\n-- Effective Flags --")
 		fmt.Printf("web_driver_port: %d\n", webDriverPort)
 		fmt.Printf("web_driver_path: %s\n", webDriverPath)
+		fmt.Printf("web_driver_log : %s\n", webDriverLog)
 		fmt.Printf("use_pandoc     : %t\n", usePandoc)
 		fmt.Printf("verbose        : %t\n", verbose)
 		fmt.Printf("search_engine  : %s\n", searchEngine)
@@ -85,6 +92,11 @@ var debugCmd = &cobra.Command{
 		fmt.Printf("cache_expires  : %s\n", searchCacheExpiresStr)
 		fmt.Printf("google_cx      : %s\n", googleCx)
 		fmt.Printf("google_key     : %s\n", googleKey)
+		if userConfig.HTTP.MasterKey != nil && *userConfig.HTTP.MasterKey != "" {
+			fmt.Printf("master_key     : ********\n")
+		} else {
+			fmt.Printf("master_key     : \n")
+		}
 		fmt.Printf("mcp_addr       : %s\n", mcpAddr)
 		fmt.Printf("mcp_port       : %d\n", mcpPort)
 		fmt.Printf("image_max_bytes: %d\n", fetchurl.DefaultMaxDownloadBytes)
