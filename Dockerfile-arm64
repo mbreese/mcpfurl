@@ -12,7 +12,7 @@ RUN apt update && \
     mkdir -p /app && \
     useradd user
 
-COPY bin/mcpfurl.linux_musl_aarch64 /app/mcpfurl
+COPY bin/mcpfurl.linux_musl_arm64 /app/mcpfurl
 RUN chmod +x /app/mcpfurl
 
 USER user
