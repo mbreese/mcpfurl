@@ -1,0 +1,12 @@
+# Search results
+
+* [Diabetes Research, Education, Advocacy | ADA](https://diabetes.org/) - Leading the fight against the deadly consequences of diabetes for those affected by it through research funding, community services, education and advocacy.
+* [Diabetes](https://www.who.int/news-room/fact-sheets/detail/diabetes) - Nov 14, 2024 ... Diabetes is a chronic disease that occurs either when the pancreas does not produce enough insulin or when the body cannot effectively use the insulin it ...
+* [Diabetes: What It Is, Causes, Symptoms, Treatment & Types](https://my.clevelandclinic.org/health/diseases/7104-diabetes) - Diabetes is a condition that happens when your blood sugar (glucose) is too high. It develops when your pancreas doesn't make enough insulin or any at all.
+* [Diabetes - Symptoms and causes - Mayo Clinic](https://www.mayoclinic.org/diseases-conditions/diabetes/symptoms-causes/syc-20371444) - Mar 27, 2024 ... Learn more about the different types of this blood sugar disorder, who's at risk and how each type can be treated.
+* [Diabetes - Wikipedia](https://en.wikipedia.org/wiki/Diabetes) - Diabetes mellitus, commonly known as diabetes, is a group of common endocrine diseases characterized by sustained high blood sugar levels.
+* [Diabetes | Type 1 Diabetes | Type 2 Diabetes | MedlinePlus](https://medlineplus.gov/diabetes.html) - Feb 3, 2025 ... Diabetes is a chronic health condition in which your blood glucose levels are too high. There is no cure, but diet, exercise, medications, ...
+* [What Is Diabetes? - NIDDK](https://www.niddk.nih.gov/health-information/diabetes/overview/what-is-diabetes) - Diabetes occurs when your blood glucose is too high, which can lead to health problems. The main types of diabetes are type 1, type 2, and gestational.
+* [Diabetes | Diabetes | CDC](https://www.cdc.gov/diabetes/index.html) - Diabetes is a chronic disease that affects how your body turns food into energy. About 1 in 10 Americans has diabetes.
+* [International Diabetes Federation: Home](https://idf.org/) - The mission of the International Diabetes Federation is to improve the lives of people with diabetes and prevent diabetes in those at risk.
+* [Diabetes | American Diabetes Association](https://diabetesjournals.org/diabetes) - Diabetes publishes original research about the physiology and pathophysiology of diabetes mellitus. Submitted manuscripts can report any aspect of laboratory, ...

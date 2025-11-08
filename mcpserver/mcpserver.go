@@ -1,0 +1,257 @@
+package mcpserver
+
+import (
+	"context"
+	"crypto/subtle"
+	"encoding/base64"
+	"fmt"
+	"log"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/mbreese/mcpfurl/fetchurl"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+type WebFetchParams struct {
+	URL string `json:"url" jsonschema:"The URL of the webpage to fetch"`
+}
+
+type WebSearchParams struct {
+	Query          string `json:"query" jsonschema:"The web search to perform"`
+	OutputMarkdown bool   `json:"markdown_output,omitempty" jsonschema:"The output should be in Markdown format"`
+}
+
+type WebFetchOutput struct {
+	Content string `json:"content" jsonschema:"The content of the webpage in Markdown format"`
+}
+
+type WebSearchOutput struct {
+	Query           string                  `json:"query" jsonschema:"The query for this search"`
+	ResultsMarkdown string                  `json:"markdown,omitempty" jsonschema:"The search results in Markdown format"`
+	Results         []fetchurl.SearchResult `json:"results,omitempty" jsonschema:"The search results in JSON format"`
+}
+
+type ImageFetchParams struct {
+	URL string `json:"url" jsonschema:"The URL of the image to fetch"`
+}
+
+type ImageFetchOutput struct {
+	Filename    string `json:"filename,omitempty" jsonschema:"The detected filename from the URL path"`
+	ContentType string `json:"content_type,omitempty" jsonschema:"The Content-Type header returned by the server"`
+	DataBase64  string `json:"data_base64" jsonschema:"Base64 encoded binary of the downloaded resource"`
+}
+
+var fetcher *fetchurl.WebFetcher
+var server *mcp.Server
+var logger *slog.Logger
+
+func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParams) (*mcp.CallToolResult, *WebFetchOutput, error) {
+	if args.URL == "" {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "Missing URL"},
+			},
+		}, nil, nil
+	}
+	logger.Info(fmt.Sprintf("Fetching URL: %s", args.URL))
+	webpage, err := fetcher.FetchURL(ctx, args.URL, "")
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: fmt.Sprintf("Error fetching URL: %s => %s", args.URL, err)},
+			},
+		}, nil, nil
+	}
+
+	if markdown, err := fetcher.WebpageToMarkdownYaml(webpage); err == nil {
+		return nil, &WebFetchOutput{Content: markdown}, nil
+	}
+
+	return &mcp.CallToolResult{
+		IsError: true,
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: fmt.Sprintf("Error converting webpage: %s", err)},
+		},
+	}, nil, nil
+}
+
+func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchParams) (*mcp.CallToolResult, *WebSearchOutput, error) {
+	if args.Query == "" {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "Missing argument: \"query\""},
+			},
+		}, nil, nil
+	}
+
+	logger.Info(fmt.Sprintf("Search: %s", args.Query))
+
+	results, err := fetcher.SearchJSON(ctx, args.Query)
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: fmt.Sprintf("Error: %v", err)},
+			},
+		}, nil, nil
+	}
+
+	if args.OutputMarkdown {
+		ret := "# Search results\n\n"
+		for _, result := range results {
+			ret += fmt.Sprintf("* [%s](%s) - %s\n", result.Title, result.Link, result.Snippet)
+		}
+		return nil, &WebSearchOutput{Query: args.Query, ResultsMarkdown: ret}, nil
+	}
+
+	return nil, &WebSearchOutput{Query: args.Query, Results: results}, nil
+}
+
+func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchParams) (*mcp.CallToolResult, *ImageFetchOutput, error) {
+	if args.URL == "" {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "Missing URL"},
+			},
+		}, nil, nil
+	}
+
+	logger.Info(fmt.Sprintf("Downloading asset: %s", args.URL))
+	resource, err := fetcher.DownloadResource(ctx, args.URL)
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: err.Error()},
+			},
+		}, nil, nil
+	}
+
+	return nil, &ImageFetchOutput{
+		Filename:    resource.Filename,
+		ContentType: resource.ContentType,
+		DataBase64:  base64.StdEncoding.EncodeToString(resource.Body),
+	}, nil
+}
+
+func init() {
+	server = mcp.NewServer(&mcp.Implementation{Name: "mcpfurl", Version: "v0.0.1"}, nil)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "web_fetch",
+		Description: "Fetch a webpage and return the content in Markdown format",
+	}, fetchPage)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "web_search",
+		Description: "Perform a web search and return the results in Markdown format",
+	}, webSearch)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "image_fetch",
+		Description: "Download an image or binary file and return it as base64 data",
+	}, fetchImage)
+}
+
+func StartStdio(opts fetchurl.WebFetcherOptions) {
+	opts.ConvertAbsoluteHref = true
+	logger = opts.Logger
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
+	var err error
+	if fetcher, err = fetchurl.NewWebFetcher(opts); err != nil {
+		log.Fatalf("ERROR: %v\n", err)
+	}
+	if err := fetcher.Start(); err != nil {
+		log.Fatalf("ERROR: %v\n", err)
+	}
+	defer fetcher.Stop()
+
+	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey string) {
+	opts.ConvertAbsoluteHref = true
+	logger = opts.Logger
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
+	var err error
+	if fetcher, err = fetchurl.NewWebFetcher(opts); err != nil {
+		logger.Error(fmt.Sprintf("Error creating webfetcher: %v", err))
+		return
+	}
+	if err := fetcher.Start(); err != nil {
+		logger.Error(fmt.Sprintf("Error starting webfetcher: %v", err))
+		return
+	}
+	defer fetcher.Stop()
+
+	handler := mcp.NewStreamableHTTPHandler(
+		func(r *http.Request) *mcp.Server {
+			return server
+		}, nil,
+	)
+
+	authWrapper := func(next http.Handler) http.Handler {
+		if masterKey == "" {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			expected := "Bearer " + masterKey
+			if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte(expected)) != 1 {
+				logger.Warn("Unauthorized request", slog.String("remote_addr", r.RemoteAddr), slog.String("path", r.URL.Path))
+				w.Header().Set("WWW-Authenticate", "Bearer")
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", authWrapper(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello!\n"))
+	})))
+	mux.Handle("/mcp", authWrapper(handler))
+
+	httpServer := &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", addr, port),
+		Handler: mux,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		<-ctx.Done()
+		logger.Info("Received shutdown signal")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error(fmt.Sprintf("HTTP server shutdown error: %v", err))
+		}
+	}()
+
+	log.Printf("Starting cgmcp-webfetch MCP server on %s:%d\n", addr, port)
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Error(fmt.Sprintf("HTTP server error: %v", err))
+		return
+	}
+	logger.Info("HTTP server stopped")
+}
+
+// func verifyToken(ctx context.Context, token string, req *http.Request) (*auth.TokenInfo, error) {
+// 	return &auth.TokenInfo{}, nil
+// }
