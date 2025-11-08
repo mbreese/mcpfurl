@@ -69,7 +69,7 @@ func ConvertTTLToDuration(ttl string) (time.Duration, error) {
 }
 
 func NewSearchCache(path string, ttl time.Duration) (*SearchCache, error) {
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}

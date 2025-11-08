@@ -15,10 +15,11 @@ var mcpCmd = &cobra.Command{
 	Short: "Start an MCP server over stdio",
 	Run: func(cmd *cobra.Command, args []string) {
 		applyMCPConfig(cmd)
+		applyCacheConfig(cmd)
 
 		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
 		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value")
+			log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
 		}
 
 		var logger *slog.Logger
@@ -45,10 +46,11 @@ var mcpHttpCmd = &cobra.Command{
 	Short: "Start an MCP server over HTTP",
 	Run: func(cmd *cobra.Command, args []string) {
 		applyMCPHTTPConfig(cmd)
+		applyCacheConfig(cmd)
 
 		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
 		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value")
+			log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
 		}
 
 		var logger *slog.Logger

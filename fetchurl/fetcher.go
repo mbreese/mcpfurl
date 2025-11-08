@@ -155,17 +155,6 @@ func (w *WebFetcher) Start() error {
 	return nil
 }
 
-// This function wraps the Main FetchURL outputs into one object that's suitable
-// for use in a channel.
-//
-// This is helpful when there could be multiple calls to the same WebFetcher, which
-// is protected by the mutex lock.
-
-func (w *WebFetcher) FetchURLResult(ctx context.Context, targetURL string, selector string) *FetchedWebPageResult {
-	page, err := w.FetchURL(ctx, targetURL, selector)
-	return &FetchedWebPageResult{page, err}
-}
-
 func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector string) (*FetchedWebPage, error) {
 	// hold onto the lock for this instance. If we need to make
 	// more than one request at a time, it will require more than
@@ -307,7 +296,7 @@ func (w *WebFetcher) SearchJSON(ctx context.Context, query string) ([]SearchResu
 
 	if w.cache != nil {
 		if results, ok, err := w.cache.Get(ctx, query); err == nil && ok {
-			w.opts.Logger.Debug("Search cache hit")
+			w.opts.Logger.Debug("Returning search results from cache")
 			return results, nil
 		} else if err != nil {
 			w.opts.Logger.Warn("search cache get failed", "error", err)

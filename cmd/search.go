@@ -19,6 +19,7 @@ var searchCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		applyGoogleCustomConfig(cmd)
+		applyCacheConfig(cmd)
 
 		convertToMarkdown = convertToMarkdown || convertToMarkdown2
 
@@ -28,7 +29,7 @@ var searchCmd = &cobra.Command{
 
 		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
 		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value")
+			log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
 		}
 
 		if len(args) < 1 {
@@ -57,12 +58,6 @@ var searchCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
 		}
-		if err := fetcher.Start(); err != nil {
-			log.Fatalf("ERROR: %v\n", err)
-		}
-
-		defer fetcher.Stop()
-
 		ctx := context.Background()
 		results, err := fetcher.SearchJSON(ctx, query)
 		if err != nil {
