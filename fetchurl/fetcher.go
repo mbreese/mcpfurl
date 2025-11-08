@@ -65,20 +65,24 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 	}
 
 	var search SearchEngine
-	if opts.SearchEngine == "google_custom" {
-		if opts.GoogleSearchCx == "" || opts.GoogleSearchKey == "" {
-			return nil, fmt.Errorf("missing Google cx and/or api key values")
-		}
-		search = NewGoogleCustomSearch(opts.GoogleSearchCx, opts.GoogleSearchKey)
-	}
-
 	var cache *SearchCache
-	if opts.SearchCachePath != "" {
-		searchCache, err := NewSearchCache(opts.SearchCachePath, opts.SearchCacheExpires)
-		if err != nil {
-			return nil, err
+
+	if opts.SearchEngine == "google_custom" {
+		if opts.GoogleSearchCx != "" && opts.GoogleSearchKey != "" {
+			search = NewGoogleCustomSearch(opts.GoogleSearchCx, opts.GoogleSearchKey)
+		} else {
+			opts.Logger.Info("missing Google cx and/or api key values, disabling search")
 		}
-		cache = searchCache
+
+		if search != nil {
+			if opts.SearchCachePath != "" {
+				searchCache, err := NewSearchCache(opts.SearchCachePath, opts.SearchCacheExpires)
+				if err != nil {
+					return nil, err
+				}
+				cache = searchCache
+			}
+		}
 	}
 
 	return &WebFetcher{

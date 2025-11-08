@@ -4,6 +4,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/mbreese/mcpfurl/fetchurl"
 	"github.com/mbreese/mcpfurl/mcpserver"
@@ -48,9 +49,13 @@ var mcpHttpCmd = &cobra.Command{
 		applyMCPHTTPConfig(cmd)
 		applyCacheConfig(cmd)
 
-		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
-		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
+		var searchCacheExpires time.Duration
+		if searchCachePath != "" && searchCacheExpiresStr != "" {
+			var err error
+			searchCacheExpires, err = fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
+			if err != nil {
+				log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
+			}
 		}
 
 		var logger *slog.Logger
@@ -86,7 +91,8 @@ func init() {
 	mcpHttpCmd.Flags().StringVar(&googleCx, "google-cx", "", "cx value for Google Custom Search")
 	mcpHttpCmd.Flags().StringVar(&googleKey, "google-key", "", "API key for Google Custom Search")
 	mcpHttpCmd.Flags().StringVar(&searchEngine, "search-engine", "google_custom", "Search engine to use (e.g. google_custom)")
-	mcpHttpCmd.Flags().StringVar(&searchCachePath, "search-cache", "", "Path to the SQLite search cache database")
+	mcpHttpCmd.Flags().StringVar(&searchCachePath, "cache", "", "Path to the SQLite search cache database")
+	mcpHttpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	mcpHttpCmd.Flags().StringVar(&masterKey, "master-key", "", "Require HTTP Authorization: Bearer <value> to access the MCP server")
 	rootCmd.AddCommand(mcpHttpCmd)
 
@@ -97,6 +103,7 @@ func init() {
 	mcpCmd.Flags().StringVar(&googleCx, "google-cx", "", "cx value for Google Custom Search")
 	mcpCmd.Flags().StringVar(&googleKey, "google-key", "", "API key for Google Custom Search")
 	mcpCmd.Flags().StringVar(&searchEngine, "search-engine", "google_custom", "Search engine to use (e.g. google_custom)")
-	mcpCmd.Flags().StringVar(&searchCachePath, "search-cache", "", "Path to the SQLite search cache database")
+	mcpCmd.Flags().StringVar(&searchCachePath, "cache", "", "Path to the SQLite search cache database")
+	mcpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	rootCmd.AddCommand(mcpCmd)
 }

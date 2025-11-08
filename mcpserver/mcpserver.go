@@ -244,10 +244,9 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 		}
 	}()
 
-	log.Printf("Starting cgmcp-webfetch MCP server on %s:%d\n", addr, port)
+	logger.Info(fmt.Sprintf("Starting mcpfurl MCP server on %s:%d", addr, port))
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error(fmt.Sprintf("HTTP server error: %v", err))
-		return
 	}
 	logger.Info("HTTP server stopped")
 }
