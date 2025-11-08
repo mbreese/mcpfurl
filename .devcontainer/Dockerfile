@@ -9,4 +9,5 @@ RUN apt-get update \
 #    && tar -xzf aarch64-linux-musl-cross.tgz -C /opt/musl-cross
     && apt-get clean 
 
+EXPOSE 8080
 #ENV PATH="/opt/musl-cross/x86_64-linux-musl-cross/bin:/opt/musl-cross/aarch64-linux-musl-cross/bin:${PATH}"
