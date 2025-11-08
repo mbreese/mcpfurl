@@ -13,6 +13,6 @@ RUN apt update && \
 COPY bin/mcpfurl.linux_musl_amd64 /app/mcpfurl
 RUN chmod +x /app/mcpfurl
 
-USER user
+#USER user
 
 CMD /app/mcpfurl mcp-http

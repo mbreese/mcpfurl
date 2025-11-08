@@ -35,6 +35,7 @@ type WebFetcherOptions struct {
 	GoogleSearchKey     string
 	SearchCachePath     string
 	SearchCacheExpires  time.Duration
+	WebDriverLogging    string
 }
 
 type FetchedWebPage struct {
@@ -118,13 +119,21 @@ func (w *WebFetcher) Start() error {
 		"browserName": "chrome",
 	}
 
+	args := []string{
+		"--headless",
+		"--no-sandbox",
+		"--disable-dev-shm-usage",
+		"--disable-gpu",
+	}
+
+	if w.opts.WebDriverLogging != "" {
+		args = append(args, fmt.Sprintf("--log-path=%s", w.opts.WebDriverLogging))
+	}
+
+	w.opts.Logger.Debug(fmt.Sprintf("%v", args))
+
 	caps.AddChrome(chrome.Capabilities{
-		Args: []string{
-			"--headless",
-			"--no-sandbox",
-			"--disable-dev-shm-usage",
-			"--disable-gpu",
-		},
+		Args: args,
 	})
 
 	// Try to connect to an exiting service first

@@ -40,6 +40,7 @@ var fetchCmd = &cobra.Command{
 			ConvertAbsoluteHref: useAbsHref,
 			WebDriverPort:       webDriverPort,
 			ChromeDriverPath:    webDriverPath,
+			WebDriverLogging:    webDriverLoggingPath,
 			Logger:              logger,
 			UsePandoc:           usePandoc,
 		})
@@ -70,14 +71,18 @@ var fetchCmd = &cobra.Command{
 			log.Fatalf("ERROR: %v\n", err)
 		}
 
-		if convertToMarkdown {
-			if md, err := fetcher.WebpageToMarkdownYaml(webpage); err == nil {
-				fmt.Println(md)
+		if webpage != nil {
+			if convertToMarkdown {
+				if md, err := fetcher.WebpageToMarkdownYaml(webpage); err == nil {
+					fmt.Println(md)
+				} else {
+					fmt.Println(err)
+				}
 			} else {
-				fmt.Println(err)
+				fmt.Println(webpage.Src)
 			}
 		} else {
-			fmt.Println(webpage.Src)
+			fmt.Fprintf(os.Stderr, "Unable to fetch web page: %s\n", url)
 		}
 	},
 }
@@ -89,9 +94,11 @@ var useAbsHref bool
 var verbose bool
 var webDriverPort int
 var webDriverPath string
+var webDriverLoggingPath string
 
 func init() {
 	fetchCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
+	fetchCmd.Flags().StringVar(&webDriverLoggingPath, "wd-log", "", "Path to chromedriver log file")
 	fetchCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
 	fetchCmd.Flags().BoolVar(&useAbsHref, "abspath", false, "Use absolute paths for a-hrefs/img-src")
 	fetchCmd.Flags().BoolVar(&convertToMarkdown2, "md", false, "Alias for --markdown")
