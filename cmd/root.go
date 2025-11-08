@@ -32,16 +32,13 @@ var debugCmd = &cobra.Command{
 					fmt.Printf("  web_driver_path: %s\n", *userConfig.MCP.WebDriverPath)
 				}
 				if userConfig.MCP.UsePandoc != nil {
-					fmt.Printf("  use_pandoc    : %t\n", *userConfig.MCP.UsePandoc)
+					fmt.Printf("  use_pandoc     : %t\n", *userConfig.MCP.UsePandoc)
 				}
 				if userConfig.MCP.SearchEngine != nil {
-					fmt.Printf("  search_engine : %s\n", *userConfig.MCP.SearchEngine)
-				}
-				if userConfig.MCP.SearchCache != nil {
-					fmt.Printf("  search_cache: %s\n", *userConfig.MCP.SearchCache)
+					fmt.Printf("  search_engine  : %s\n", *userConfig.MCP.SearchEngine)
 				}
 				if userConfig.MCP.Verbose != nil {
-					fmt.Printf("  verbose       : %t\n", *userConfig.MCP.Verbose)
+					fmt.Printf("  verbose        : %t\n", *userConfig.MCP.Verbose)
 				}
 			}
 			if userConfig.HTTP != nil {
@@ -62,20 +59,35 @@ var debugCmd = &cobra.Command{
 					fmt.Printf("  key: %s\n", *userConfig.GoogleCustom.Key)
 				}
 			}
+			if userConfig.Cache != nil {
+				fmt.Println("[cache]")
+				if userConfig.Cache.SearchDB != nil {
+					fmt.Printf("  db_path : %s\n", *userConfig.Cache.SearchDB)
+				}
+				if userConfig.Cache.Expires != nil {
+					fmt.Printf("  expires: %s\n", *userConfig.Cache.Expires)
+				}
+			}
 		}
+
+		applyMCPConfig(cmd)
+		applyMCPHTTPConfig(cmd)
+		applyGoogleCustomConfig(cmd)
+		applyCacheConfig(cmd)
 
 		fmt.Println("\n-- Effective Flags --")
 		fmt.Printf("web_driver_port: %d\n", webDriverPort)
 		fmt.Printf("web_driver_path: %s\n", webDriverPath)
-		fmt.Printf("use_pandoc    : %t\n", usePandoc)
-		fmt.Printf("verbose       : %t\n", verbose)
-		fmt.Printf("search_engine : %s\n", searchEngine)
-		fmt.Printf("search_cache  : %s\n", searchCachePath)
-		fmt.Printf("google_cx     : %s\n", googleCx)
-		fmt.Printf("google_key    : %s\n", googleKey)
-		fmt.Printf("mcp_addr      : %s\n", mcpAddr)
-		fmt.Printf("mcp_port      : %d\n", mcpPort)
-		fmt.Printf("image max bytes: %d\n", fetchurl.DefaultMaxDownloadBytes)
+		fmt.Printf("use_pandoc     : %t\n", usePandoc)
+		fmt.Printf("verbose        : %t\n", verbose)
+		fmt.Printf("search_engine  : %s\n", searchEngine)
+		fmt.Printf("search_cache   : %s\n", searchCachePath)
+		fmt.Printf("cache_expires  : %s\n", searchCacheExpiresStr)
+		fmt.Printf("google_cx      : %s\n", googleCx)
+		fmt.Printf("google_key     : %s\n", googleKey)
+		fmt.Printf("mcp_addr       : %s\n", mcpAddr)
+		fmt.Printf("mcp_port       : %d\n", mcpPort)
+		fmt.Printf("image_max_bytes: %d\n", fetchurl.DefaultMaxDownloadBytes)
 	},
 }
 
