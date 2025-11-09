@@ -35,7 +35,7 @@ type WebFetcherOptions struct {
 	GoogleSearchKey     string
 	SearchCachePath     string
 	SearchCacheExpires  time.Duration
-	WebDriverLogging    string
+	// WebDriverLogging    string
 }
 
 type FetchedWebPage struct {
@@ -114,8 +114,6 @@ func (w *WebFetcher) Start() error {
 	}
 	w.lock.Lock()
 
-	fmt.Printf("%v\n", w.opts)
-
 	// Set Chrome options (headless)
 	caps := selenium.Capabilities{
 		"browserName": "chrome",
@@ -128,10 +126,10 @@ func (w *WebFetcher) Start() error {
 		"--no-sandbox",
 	}
 
-	if w.opts.WebDriverLogging != "" {
-		args = append(args, fmt.Sprintf("--log-path=%s", w.opts.WebDriverLogging))
-		args = append(args, "--log-level=DEBUG")
-	}
+	// if w.opts.WebDriverLogging != "" {
+	// 	args = append(args, fmt.Sprintf("--log-path=%s", w.opts.WebDriverLogging))
+	// 	args = append(args, "--log-level=DEBUG")
+	// }
 
 	w.opts.Logger.Debug(fmt.Sprintf("%v", args))
 

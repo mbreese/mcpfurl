@@ -28,9 +28,9 @@ var mcpCmd = &cobra.Command{
 			logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		}
 		mcpserver.StartStdio(fetchurl.WebFetcherOptions{
-			WebDriverPort:      webDriverPort,
-			ChromeDriverPath:   webDriverPath,
-			WebDriverLogging:   webDriverLog,
+			WebDriverPort:    webDriverPort,
+			ChromeDriverPath: webDriverPath,
+			// WebDriverLogging:   webDriverLog,
 			Logger:             logger,
 			MaxDownloadBytes:   fetchurl.DefaultMaxDownloadBytes,
 			UsePandoc:          usePandoc,
@@ -64,9 +64,9 @@ var mcpHttpCmd = &cobra.Command{
 			logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		}
 		mcpserver.StartHTTP(mcpAddr, mcpPort, fetchurl.WebFetcherOptions{
-			WebDriverPort:      webDriverPort,
-			ChromeDriverPath:   webDriverPath,
-			WebDriverLogging:   webDriverLog,
+			WebDriverPort:    webDriverPort,
+			ChromeDriverPath: webDriverPath,
+			// WebDriverLogging:   webDriverLog,
 			Logger:             logger,
 			MaxDownloadBytes:   fetchurl.DefaultMaxDownloadBytes,
 			UsePandoc:          usePandoc,
@@ -87,7 +87,7 @@ func init() {
 	mcpHttpCmd.Flags().IntVarP(&mcpPort, "port", "p", 8080, "Start the MCP server on this port")
 	mcpHttpCmd.Flags().StringVar(&mcpAddr, "addr", "0.0.0.0", "Bind to this address")
 	mcpHttpCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
-	mcpHttpCmd.Flags().StringVar(&webDriverLog, "wd-log", "", "Path to chromedriver log file")
+	// mcpHttpCmd.Flags().StringVar(&webDriverLog, "wd-log", "", "Path to chromedriver log file")
 	mcpHttpCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
 	mcpHttpCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	mcpHttpCmd.Flags().BoolVar(&usePandoc, "pandoc", false, "Convert HTML to Markdown using pandoc")
@@ -101,7 +101,7 @@ func init() {
 
 	mcpCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
 	mcpCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
-	mcpCmd.Flags().StringVar(&webDriverLog, "wd-log", "", "Path to chromedriver log file")
+	// mcpCmd.Flags().StringVar(&webDriverLog, "wd-log", "", "Path to chromedriver log file")
 	mcpCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	mcpCmd.Flags().BoolVar(&usePandoc, "pandoc", false, "Convert HTML to Markdown using pandoc")
 	mcpCmd.Flags().StringVar(&googleCx, "google-cx", "", "cx value for Google Custom Search")

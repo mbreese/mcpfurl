@@ -31,9 +31,9 @@ var debugCmd = &cobra.Command{
 				if userConfig.MCP.WebDriverPath != nil {
 					fmt.Printf("  web_driver_path: %s\n", *userConfig.MCP.WebDriverPath)
 				}
-				if userConfig.MCP.WebDriverLog != nil {
-					fmt.Printf("  web_driver_log : %s\n", *userConfig.MCP.WebDriverLog)
-				}
+				// if userConfig.MCP.WebDriverLog != nil {
+				// 	fmt.Printf("  web_driver_log : %s\n", *userConfig.MCP.WebDriverLog)
+				// }
 				if userConfig.MCP.UsePandoc != nil {
 					fmt.Printf("  use_pandoc     : %t\n", *userConfig.MCP.UsePandoc)
 				}
@@ -84,7 +84,7 @@ var debugCmd = &cobra.Command{
 		fmt.Println("\n-- Effective Flags --")
 		fmt.Printf("web_driver_port: %d\n", webDriverPort)
 		fmt.Printf("web_driver_path: %s\n", webDriverPath)
-		fmt.Printf("web_driver_log : %s\n", webDriverLog)
+		// fmt.Printf("web_driver_log : %s\n", webDriverLog)
 		fmt.Printf("use_pandoc     : %t\n", usePandoc)
 		fmt.Printf("verbose        : %t\n", verbose)
 		fmt.Printf("search_engine  : %s\n", searchEngine)
