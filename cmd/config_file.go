@@ -135,7 +135,7 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPCommandConfig) {
 	if cfg.WebDriverPath != nil && !cmd.Flags().Changed("wd-path") {
 		webDriverPath = *cfg.WebDriverPath
 	}
-	if cfg.WebDriverPath != nil && !cmd.Flags().Changed("wd-log") {
+	if cfg.WebDriverLog != nil && !cmd.Flags().Changed("wd-log") {
 		webDriverLog = *cfg.WebDriverLog
 	}
 	if cfg.UsePandoc != nil && !cmd.Flags().Changed("pandoc") {

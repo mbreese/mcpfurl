@@ -114,6 +114,8 @@ func (w *WebFetcher) Start() error {
 	}
 	w.lock.Lock()
 
+	fmt.Printf("%v\n", w.opts)
+
 	// Set Chrome options (headless)
 	caps := selenium.Capabilities{
 		"browserName": "chrome",
@@ -123,7 +125,7 @@ func (w *WebFetcher) Start() error {
 		"--headless",
 		"--disable-dev-shm-usage",
 		"--disable-gpu",
-		// "--no-sandbox",
+		"--no-sandbox",
 	}
 
 	if w.opts.WebDriverLogging != "" {
@@ -179,29 +181,31 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	var resultErr error
-	var result *FetchedWebPage
+	type tmpResult struct {
+		webPage   *FetchedWebPage
+		resultErr error
+	}
+
+	c1 := make(chan tmpResult)
 
 	go func() {
 		select {
 		case <-ctx.Done():
 			fmt.Println("Context cancelled, stopping Selenium operation.")
 			w.lock.Unlock()
-			resultErr = fmt.Errorf("context timed out or cancelled")
-			result = nil
+			c1 <- tmpResult{nil, fmt.Errorf("context timed out or cancelled")}
 			return
 		default:
 			w.opts.Logger.Info(fmt.Sprintf("Fetching URL: %s", targetURL))
 
 			if w.done {
-				resultErr = fmt.Errorf("service already stopped")
-				result = nil
+				c1 <- tmpResult{nil, fmt.Errorf("service already stopped")}
 				return
 			}
 			// Navigate to a URL
 			if err := w.wd.Get(targetURL); err != nil {
-				resultErr = fmt.Errorf("failed to load page: %v", err)
-				result = nil
+				fmt.Printf("Error: %v\n\n", err)
+				c1 <- tmpResult{nil, fmt.Errorf("failed to load page: %v", err)}
 				return
 			}
 
@@ -218,8 +222,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 				return false, nil
 			}, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
 			if err != nil {
-				resultErr = fmt.Errorf("failed waiting for page to load: %v", err)
-				result = nil
+				c1 <- tmpResult{nil, fmt.Errorf("failed waiting for page to load: %v", err)}
 				return
 			}
 			w.opts.Logger.Debug("Page loaded")
@@ -240,8 +243,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 			});
     	`, nil)
 				if err != nil {
-					resultErr = fmt.Errorf("failed to execute JS: %v", err)
-					result = nil
+					c1 <- tmpResult{nil, fmt.Errorf("failed to execute JS: %v", err)}
 					return
 				}
 			}
@@ -249,8 +251,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 
 			title, err := w.wd.Title()
 			if err != nil {
-				resultErr = fmt.Errorf("failed to get title: %v", err)
-				result = nil
+				c1 <- tmpResult{nil, fmt.Errorf("failed to get title: %v", err)}
 				return
 			}
 
@@ -259,22 +260,19 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 			if selector == "" || strings.ToLower(selector) == "body" {
 				body, err = w.wd.FindElement(selenium.ByTagName, "body")
 				if err != nil {
-					resultErr = fmt.Errorf("failed to find body: %v", err)
-					result = nil
+					c1 <- tmpResult{nil, fmt.Errorf("failed to find body: %v", err)}
 					return
 				}
 			} else if selector[0] == '#' {
 				body, err = w.wd.FindElement(selenium.ByID, selector[1:])
 				if err != nil {
-					resultErr = fmt.Errorf("failed to find %s: %v", selector, err)
-					result = nil
+					c1 <- tmpResult{nil, fmt.Errorf("failed to find %s: %v", selector, err)}
 					return
 				}
 			} else if selector[0] == '.' {
 				elements, err := w.wd.FindElements(selenium.ByClassName, selector[1:])
 				if err != nil || len(elements) == 0 {
-					resultErr = fmt.Errorf("failed to find %s: %v", selector, err)
-					result = nil
+					c1 <- tmpResult{nil, fmt.Errorf("failed to find %s: %v", selector, err)}
 					return
 				}
 				body = elements[0]
@@ -282,24 +280,26 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 
 			htmlSrc, err := body.GetAttribute("innerHTML")
 			if err != nil {
-				resultErr = fmt.Errorf("failed to get body html: %v", err)
-				result = nil
+				c1 <- tmpResult{nil, fmt.Errorf("failed to get body html: %v", err)}
 				return
 			}
 
 			currentURL, err := w.wd.CurrentURL()
 			if err != nil {
-				resultErr = fmt.Errorf("failed to get currentURL: %v", err)
-				result = nil
+				c1 <- tmpResult{nil, fmt.Errorf("failed to get currentURL: %v", err)}
 				return
 			}
 			w.opts.Logger.Debug("Done")
-			result = &FetchedWebPage{Title: title, TargetURL: targetURL, CurrentURL: currentURL, Src: htmlSrc}
+			webpage := &FetchedWebPage{Title: title, TargetURL: targetURL, CurrentURL: currentURL, Src: htmlSrc}
+			c1 <- tmpResult{webpage, nil}
 			return
 		}
 	}()
 
-	return result, resultErr
+	// waiting for go routine to return
+	retResult := <-c1
+
+	return retResult.webPage, retResult.resultErr
 
 }
 
