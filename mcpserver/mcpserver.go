@@ -153,29 +153,35 @@ func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchPa
 	}, nil
 }
 
-func createMCPServer(opts MCPServerOptions) *mcp.Server {
-	if opts.FetchDesc == "" {
-		opts.FetchDesc = "Fetch a webpage and return the content in Markdown format"
+func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mcp.Server {
+	if mcpOpts.FetchDesc == "" {
+		mcpOpts.FetchDesc = "Fetch a webpage and return the content in Markdown format"
 	}
-	if opts.SearchDesc == "" {
-		opts.SearchDesc = "Perform a web search and return the results in Markdown format"
+	if mcpOpts.SearchDesc == "" {
+		mcpOpts.SearchDesc = "Perform a web search and return the results in Markdown format"
 	}
-	if opts.ImageDesc == "" {
-		opts.ImageDesc = "Download an image or binary file and return it as base64 data"
+	if mcpOpts.ImageDesc == "" {
+		mcpOpts.ImageDesc = "Download an image or binary file and return it as base64 data"
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "mcpfurl", Version: "v0.0.1"}, nil)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "web_fetch",
-		Description: opts.FetchDesc,
+		Description: mcpOpts.FetchDesc,
 	}, fetchPage)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "web_search",
-		Description: opts.SearchDesc,
-	}, webSearch)
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "image_fetch",
-		Description: opts.ImageDesc,
+		Description: mcpOpts.ImageDesc,
 	}, fetchImage)
+
+	if fetcher != nil && fetcher.HasSearch() {
+		// only expose the web_search tool if we have a valid search
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "web_search",
+			Description: mcpOpts.SearchDesc,
+		}, webSearch)
+	}
+
 	return server
 }
 
@@ -194,8 +200,7 @@ func StartStdio(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 		log.Fatalf("ERROR: %v\n", err)
 	}
 	defer fetcher.Stop()
-
-	server := createMCPServer(mcpOpts)
+	server := createMCPServer(mcpOpts, fetcher)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
@@ -220,7 +225,7 @@ func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	}
 	defer fetcher.Stop()
 
-	server := createMCPServer(mcpOpts)
+	server := createMCPServer(mcpOpts, fetcher)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server {

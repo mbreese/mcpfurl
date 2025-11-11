@@ -4,7 +4,10 @@
 web_driver_port = 9515
 web_driver_path = "/usr/bin/chromedriver"
 use_pandoc = false
-search_engine = "google_custom"
+
+# set to search_engine to "" to disable searching
+search_engine = "google_custom" 
+
 verbose = false
 fetch_tool_desc = "(optional) Custom description for the MCP fetch tool"
 search_tool_desc = "(optional) Custom description for the MCP search tool"

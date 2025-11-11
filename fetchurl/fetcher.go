@@ -84,6 +84,8 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 				cache = searchCache
 			}
 		}
+	} else {
+		opts.Logger.Info("No valid search_engine configured.")
 	}
 
 	return &WebFetcher{
@@ -91,6 +93,10 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		search: search,
 		cache:  cache,
 	}, nil
+}
+
+func (w *WebFetcher) HasSearch() bool {
+	return w.search != nil
 }
 
 func (w *WebFetcher) Stop() {
