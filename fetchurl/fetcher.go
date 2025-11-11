@@ -35,6 +35,8 @@ type WebFetcherOptions struct {
 	GoogleSearchKey     string
 	SearchCachePath     string
 	SearchCacheExpires  time.Duration
+	AllowedURLGlobs     []string
+	DenyURLGlobs        []string
 	// WebDriverLogging    string
 }
 
@@ -84,6 +86,15 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 				cache = searchCache
 			}
 		}
+	} else {
+		opts.Logger.Info("No valid search_engine configured.")
+	}
+
+	if len(opts.AllowedURLGlobs) > 0 {
+		opts.AllowedURLGlobs = append([]string(nil), opts.AllowedURLGlobs...)
+	}
+	if len(opts.DenyURLGlobs) > 0 {
+		opts.DenyURLGlobs = append([]string(nil), opts.DenyURLGlobs...)
 	}
 
 	return &WebFetcher{
@@ -91,6 +102,10 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		search: search,
 		cache:  cache,
 	}, nil
+}
+
+func (w *WebFetcher) HasSearch() bool {
+	return w.search != nil
 }
 
 func (w *WebFetcher) Stop() {
@@ -170,12 +185,19 @@ func (w *WebFetcher) Start() error {
 }
 
 func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector string) (*FetchedWebPage, error) {
+
+	// check allow/disallow lists first
+	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.DenyURLGlobs); err != nil {
+		return nil, err
+	} else if !allowed {
+		return nil, err
+	}
+
 	// hold onto the lock for this instance. If we need to make
 	// more than one request at a time, it will require more than
 	// one Webdriver session (and port) and thus a WebFetcher.
 	//
 	// So, each WebFetcher can only make one request at a time.
-
 	w.lock.Lock()
 	defer w.lock.Unlock()
 

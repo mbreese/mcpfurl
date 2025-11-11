@@ -22,8 +22,12 @@ func (w *WebFetcher) DownloadResource(ctx context.Context, targetURL string) (*D
 	if targetURL == "" {
 		return nil, fmt.Errorf("missing URL")
 	}
-	if w == nil {
-		return nil, fmt.Errorf("web fetcher is not initialized")
+
+	// check allow/disallow lists first
+	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.DenyURLGlobs); err != nil {
+		return nil, err
+	} else if !allowed {
+		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)

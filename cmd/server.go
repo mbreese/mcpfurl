@@ -16,6 +16,8 @@ var mcpCmd = &cobra.Command{
 	Short: "Start an MCP server over stdio",
 	Run: func(cmd *cobra.Command, args []string) {
 		applyMCPConfig(cmd)
+		applyMCPHTTPConfig(cmd)
+		applyGoogleCustomConfig(cmd)
 		applyCacheConfig(cmd)
 
 		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
@@ -39,6 +41,12 @@ var mcpCmd = &cobra.Command{
 			SearchEngine:       searchEngine,
 			SearchCachePath:    searchCachePath,
 			SearchCacheExpires: searchCacheExpires,
+			AllowedURLGlobs:    httpAllowGlobs,
+			DenyURLGlobs:       httpDenyGlobs,
+		}, mcpserver.MCPServerOptions{
+			FetchDesc:  defaultFetchDesc,
+			ImageDesc:  defaultImageDesc,
+			SearchDesc: defaultSearchDesc,
 		})
 	},
 }
@@ -47,7 +55,9 @@ var mcpHttpCmd = &cobra.Command{
 	Use:   "mcp-http",
 	Short: "Start an MCP server over HTTP",
 	Run: func(cmd *cobra.Command, args []string) {
+		applyMCPConfig(cmd)
 		applyMCPHTTPConfig(cmd)
+		applyGoogleCustomConfig(cmd)
 		applyCacheConfig(cmd)
 
 		var searchCacheExpires time.Duration
@@ -63,7 +73,7 @@ var mcpHttpCmd = &cobra.Command{
 		if verbose {
 			logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		}
-		mcpserver.StartHTTP(mcpAddr, mcpPort, fetchurl.WebFetcherOptions{
+		mcpserver.StartHTTP(fetchurl.WebFetcherOptions{
 			WebDriverPort:    webDriverPort,
 			ChromeDriverPath: webDriverPath,
 			// WebDriverLogging:   webDriverLog,
@@ -75,13 +85,28 @@ var mcpHttpCmd = &cobra.Command{
 			SearchEngine:       searchEngine,
 			SearchCachePath:    searchCachePath,
 			SearchCacheExpires: searchCacheExpires,
-		}, masterKey)
+			AllowedURLGlobs:    httpAllowGlobs,
+			DenyURLGlobs:       httpDenyGlobs,
+		}, mcpserver.MCPServerOptions{
+			Addr:       mcpAddr,
+			Port:       mcpPort,
+			MasterKey:  masterKey,
+			FetchDesc:  defaultFetchDesc,
+			ImageDesc:  defaultImageDesc,
+			SearchDesc: defaultSearchDesc,
+		})
 	},
 }
 
 var mcpPort int
 var mcpAddr string
 var masterKey string
+var httpAllowGlobs []string
+var httpDenyGlobs []string
+
+var defaultFetchDesc string
+var defaultImageDesc string
+var defaultSearchDesc string
 
 func init() {
 	mcpHttpCmd.Flags().IntVarP(&mcpPort, "port", "p", 8080, "Start the MCP server on this port")
@@ -97,6 +122,8 @@ func init() {
 	mcpHttpCmd.Flags().StringVar(&searchCachePath, "cache", "", "Path to the SQLite search cache database")
 	mcpHttpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	mcpHttpCmd.Flags().StringVar(&masterKey, "master-key", "", "Require HTTP Authorization: Bearer <value> to access the MCP server")
+	mcpHttpCmd.Flags().StringSliceVar(&httpAllowGlobs, "allow", nil, "Glob(s) of URLs the HTTP server may fetch (overrides config when set)")
+	mcpHttpCmd.Flags().StringSliceVar(&httpDenyGlobs, "deny", nil, "Glob(s) of URLs the HTTP server must block (overrides config when set)")
 	rootCmd.AddCommand(mcpHttpCmd)
 
 	mcpCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
@@ -111,3 +138,17 @@ func init() {
 	mcpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	rootCmd.AddCommand(mcpCmd)
 }
+
+// func httpAllowPatterns(cmd *cobra.Command) []string {
+// 	if cmd.Flags().Changed("allow") {
+// 		return clonePatterns(httpAllowGlobs)
+// 	}
+// 	return fetcherAllowPatterns()
+// }
+
+// func httpDisallowPatterns(cmd *cobra.Command) []string {
+// 	if cmd.Flags().Changed("disallow") {
+// 		return clonePatterns(httpDisallowGlobs)
+// 	}
+// 	return fetcherDenyPatterns()
+// }

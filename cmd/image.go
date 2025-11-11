@@ -22,6 +22,10 @@ var fetchImgCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		url := args[0]
+		applyMCPConfig(cmd)
+		applyMCPHTTPConfig(cmd)
+		applyGoogleCustomConfig(cmd)
+		applyCacheConfig(cmd)
 
 		var logger *slog.Logger
 		if verbose {
@@ -32,6 +36,8 @@ var fetchImgCmd = &cobra.Command{
 		fetcher, err = fetchurl.NewWebFetcher(fetchurl.WebFetcherOptions{
 			Logger:           logger,
 			MaxDownloadBytes: fetchImgMaxBytes,
+			AllowedURLGlobs:  httpAllowGlobs,
+			DenyURLGlobs:     httpDenyGlobs,
 		})
 		if err != nil {
 			log.Fatalf("error setting up webfetcher %s: %v", url, err)

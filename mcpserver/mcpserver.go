@@ -28,12 +28,14 @@ type WebSearchParams struct {
 
 type WebFetchOutput struct {
 	Content string `json:"content" jsonschema:"The content of the webpage in Markdown format"`
+	Error   string `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
 type WebSearchOutput struct {
 	Query           string                  `json:"query" jsonschema:"The query for this search"`
 	ResultsMarkdown string                  `json:"markdown,omitempty" jsonschema:"The search results in Markdown format"`
 	Results         []fetchurl.SearchResult `json:"results,omitempty" jsonschema:"The search results in JSON format"`
+	Error           string                  `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
 type ImageFetchParams struct {
@@ -44,10 +46,21 @@ type ImageFetchOutput struct {
 	Filename    string `json:"filename,omitempty" jsonschema:"The detected filename from the URL path"`
 	ContentType string `json:"content_type,omitempty" jsonschema:"The Content-Type header returned by the server"`
 	DataBase64  string `json:"data_base64" jsonschema:"Base64 encoded binary of the downloaded resource"`
+	Error       string `json:"error,omitempty" jsonschema:"Any error messages"`
+}
+
+type MCPServerOptions struct {
+	Addr       string
+	Port       int
+	MasterKey  string
+	FetchDesc  string
+	ImageDesc  string
+	SearchDesc string
 }
 
 var fetcher *fetchurl.WebFetcher
-var server *mcp.Server
+
+// var server *mcp.Server
 var logger *slog.Logger
 
 func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParams) (*mcp.CallToolResult, *WebFetchOutput, error) {
@@ -57,17 +70,16 @@ func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParam
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: "Missing URL"},
 			},
-		}, nil, nil
+		}, &WebFetchOutput{Error: "Missing URL"}, nil
 	}
-	logger.Info(fmt.Sprintf("Fetching URL: %s", args.URL))
 	webpage, err := fetcher.FetchURL(ctx, args.URL, "")
 	if err != nil {
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Error fetching URL: %s => %s", args.URL, err)},
+				&mcp.TextContent{Text: fmt.Sprintf("Error fetching URL: %s => %v", args.URL, err)},
 			},
-		}, nil, nil
+		}, &WebFetchOutput{Error: fmt.Sprintf("Error fetching URL: %s => %v", args.URL, err)}, nil
 	}
 
 	if markdown, err := fetcher.WebpageToMarkdownYaml(webpage); err == nil {
@@ -79,7 +91,7 @@ func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParam
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: fmt.Sprintf("Error converting webpage: %s", err)},
 		},
-	}, nil, nil
+	}, &WebFetchOutput{Error: fmt.Sprintf("Error converting webpage: %s", err)}, nil
 }
 
 func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchParams) (*mcp.CallToolResult, *WebSearchOutput, error) {
@@ -89,7 +101,7 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: "Missing argument: \"query\""},
 			},
-		}, nil, nil
+		}, &WebSearchOutput{Query: args.Query, Error: "Missing argument: \"query\""}, nil
 	}
 
 	logger.Info(fmt.Sprintf("Search: %s", args.Query))
@@ -101,7 +113,7 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: fmt.Sprintf("Error: %v", err)},
 			},
-		}, nil, nil
+		}, &WebSearchOutput{Query: args.Query, Error: fmt.Sprintf("Error: %v", err)}, nil
 	}
 
 	if args.OutputMarkdown {
@@ -118,22 +130,26 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchParams) (*mcp.CallToolResult, *ImageFetchOutput, error) {
 	if args.URL == "" {
 		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: "Missing URL"},
-			},
-		}, nil, nil
+				IsError: true,
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: "Missing URL"},
+				},
+			}, &ImageFetchOutput{
+				Error: "Missing URL",
+			}, nil
 	}
 
 	logger.Info(fmt.Sprintf("Downloading asset: %s", args.URL))
 	resource, err := fetcher.DownloadResource(ctx, args.URL)
 	if err != nil {
 		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: err.Error()},
-			},
-		}, nil, nil
+				IsError: true,
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: err.Error()},
+				},
+			}, &ImageFetchOutput{
+				Error: err.Error(),
+			}, nil
 	}
 
 	return nil, &ImageFetchOutput{
@@ -143,23 +159,39 @@ func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchPa
 	}, nil
 }
 
-func init() {
-	server = mcp.NewServer(&mcp.Implementation{Name: "mcpfurl", Version: "v0.0.1"}, nil)
+func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mcp.Server {
+	if mcpOpts.FetchDesc == "" {
+		mcpOpts.FetchDesc = "Fetch a webpage and return the content in Markdown format"
+	}
+	if mcpOpts.SearchDesc == "" {
+		mcpOpts.SearchDesc = "Perform a web search and return the results in Markdown format"
+	}
+	if mcpOpts.ImageDesc == "" {
+		mcpOpts.ImageDesc = "Download an image or binary file and return it as base64 data"
+	}
+	server := mcp.NewServer(&mcp.Implementation{Name: "mcpfurl", Version: "v0.0.1"}, nil)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "web_fetch",
-		Description: "Fetch a webpage and return the content in Markdown format",
+		Description: mcpOpts.FetchDesc,
 	}, fetchPage)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "web_search",
-		Description: "Perform a web search and return the results in Markdown format",
-	}, webSearch)
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "image_fetch",
-		Description: "Download an image or binary file and return it as base64 data",
+		Description: mcpOpts.ImageDesc,
 	}, fetchImage)
+
+	if fetcher != nil && fetcher.HasSearch() {
+		// only expose the web_search tool if we have a valid search
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "web_search",
+			Description: mcpOpts.SearchDesc,
+		}, webSearch)
+	}
+
+	return server
 }
 
-func StartStdio(opts fetchurl.WebFetcherOptions) {
+func StartStdio(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	opts.ConvertAbsoluteHref = true
 	logger = opts.Logger
 	if logger == nil {
@@ -174,13 +206,14 @@ func StartStdio(opts fetchurl.WebFetcherOptions) {
 		log.Fatalf("ERROR: %v\n", err)
 	}
 	defer fetcher.Stop()
+	server := createMCPServer(mcpOpts, fetcher)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey string) {
+func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	opts.ConvertAbsoluteHref = true
 	logger = opts.Logger
 	if logger == nil {
@@ -198,6 +231,8 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 	}
 	defer fetcher.Stop()
 
+	server := createMCPServer(mcpOpts, fetcher)
+
 	handler := mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server {
 			return server
@@ -205,11 +240,11 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 	)
 
 	authWrapper := func(next http.Handler) http.Handler {
-		if masterKey == "" {
+		if mcpOpts.MasterKey == "" {
 			return next
 		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			expected := "Bearer " + masterKey
+			expected := "Bearer " + mcpOpts.MasterKey
 			if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte(expected)) != 1 {
 				logger.Warn("Unauthorized request", slog.String("remote_addr", r.RemoteAddr), slog.String("path", r.URL.Path))
 				w.Header().Set("WWW-Authenticate", "Bearer")
@@ -227,7 +262,7 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 	mux.Handle("/mcp", authWrapper(handler))
 
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", addr, port),
+		Addr:    fmt.Sprintf("%s:%d", mcpOpts.Addr, mcpOpts.Port),
 		Handler: mux,
 	}
 
@@ -244,7 +279,7 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 		}
 	}()
 
-	logger.Info(fmt.Sprintf("Starting mcpfurl MCP server on %s:%d", addr, port))
+	logger.Info(fmt.Sprintf("Starting mcpfurl MCP server on %s:%d", mcpOpts.Addr, mcpOpts.Port))
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error(fmt.Sprintf("HTTP server error: %v", err))
 	}

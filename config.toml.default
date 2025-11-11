@@ -1,0 +1,35 @@
+# Default configuration for the mcpfurl CLI.
+
+[mcpfurl]
+web_driver_port = 9515
+web_driver_path = "/usr/bin/chromedriver"
+use_pandoc = false
+
+# set to search_engine to "" to disable searching
+search_engine = "google_custom"
+
+verbose = false
+fetch_tool_desc = "(optional) Custom description for the MCP fetch tool"
+search_tool_desc = "(optional) Custom description for the MCP search tool"
+image_tool_desc = "(optional) Custom description for the MCP image fetch tool"
+# Globs evaluated against the full URL (ex: https://example.com/docs/*)
+allow = [
+  "https://example.com/*",
+  "https://*.wikipedia.org/*"
+]
+deny = [
+  "https://example.com/private/*"
+]
+
+[http]
+addr = "0.0.0.0"
+port = 8080
+master_key = ""
+
+[cache]
+db_path = ""
+expires = "14d"
+
+[google_custom]
+cx = ""
+key = ""

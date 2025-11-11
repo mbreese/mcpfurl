@@ -13,15 +13,17 @@ mcpfurl is a Model Context Protocol (MCP) server that can fetch web pages, downl
 
 ## Getting Started
 
-Easy mode: Download binary from https://github.com/mbreese/mcpfurl Releases.
+* **Easy mode** -  Use the Docker container, which is located at: https://ghcr.io/mbreese/mcpfurl
 
-More difficult: You can build the project yourself with:
+* **Or...** - Download binary from https://github.com/mbreese/mcpfurl Releases (or an Action workflow run: https://github.com/mbreese/mcpfurl/actions/workflows/go.yml)
+
+* **More difficult** - You can build the project yourself with:
 
 ```bash
 make
 ```
 
-But, it is easier to run in a Docker container.
+But, it is easier to run in a Docker container, especially if you need to also install the Chromedriver headless Chrome browswer.
 
 ### Running over stdio
 
@@ -33,7 +35,7 @@ But, it is easier to run in a Docker container.
 
 ```bash
 ./mcpfurl mcp-http --addr 127.0.0.1 --port 8080 --master-key supersecret
-# or pick up the same key via MCPFETCH_MASTER_KEY or config.yaml
+# or pick up the same key via MCPFETCH_MASTER_KEY or config.toml
 ```
 
 When `--master-key` (or `MCPFETCH_MASTER_KEY`) is set, every request to `/mcp` or `/` must include `Authorization: Bearer <value>` or the server returns `401 Unauthorized`.
@@ -44,32 +46,34 @@ Configuration values can come from three places, in the following precedence ord
 
 1. CLI flags.
 2. Environment variables (e.g., `MCPFURL_CONFIG`, `MCPFETCH_MASTER_KEY`).
-3. `config.yaml` (or another file pointed to by `MCPFURL_CONFIG`).
+3. `config.toml` (or another file pointed to by `MCPFURL_CONFIG`).
 
-See `config.yaml.default` for all available options:
+See `config.toml.default` for all available options:
 
-```yaml
-http:
-  addr: 0.0.0.0
-  port: 8080
-  master_key: ""
+```toml
+[mcpfurl]
+web_driver_port = 9515
+web_driver_path = "/usr/bin/chromedriver"
+use_pandoc = false
+search_engine = "google_custom"
+allow = []
+deny = []
 
-mcp:
-  web_driver_port: 9515
-  web_driver_path: /usr/bin/chromedriver
-  use_pandoc: false
-  search_engine: google_custom
+[http]
+addr = "0.0.0.0"
+port = 8080
+master_key = ""
 
-cache:
-  db_path: cache.db
-  expires: 14d
+[cache]
+db_path = "cache.db"
+expires = "14d"
 
-google_custom:
-  cx: ""
-  key: ""
+[google_custom]
+cx = ""
+key = ""
 ```
 
-Only the settings you override need to be present in your config file. The CLI flags mirror these names (`--wd-port`, `--search-cache`, etc.).
+Only the settings you override need to be present in your config file. The CLI flags mirror these names (`--wd-port`, `--search-cache`, etc.). Set `allow`/`deny` under `[mcpfurl]` to control which URLs the server may fetch; when `allow` is empty every URL is permitted unless a `deny` glob matches.
 
 ## Dependencies
 

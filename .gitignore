@@ -1,4 +1,4 @@
 bin/*
-config.yaml
+config.toml
 cache.db
 .gomodcache

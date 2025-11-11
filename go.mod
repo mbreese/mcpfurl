@@ -20,8 +20,7 @@ require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32
+	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/tebeka/selenium v0.9.9
-	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.27.0
 )

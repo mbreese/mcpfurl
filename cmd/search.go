@@ -18,6 +18,8 @@ var searchCmd = &cobra.Command{
 	Short: "Run a web search and return the results in Markdown",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		applyMCPConfig(cmd)
+		applyMCPHTTPConfig(cmd)
 		applyGoogleCustomConfig(cmd)
 		applyCacheConfig(cmd)
 
