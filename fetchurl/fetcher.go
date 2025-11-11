@@ -35,6 +35,8 @@ type WebFetcherOptions struct {
 	GoogleSearchKey     string
 	SearchCachePath     string
 	SearchCacheExpires  time.Duration
+	AllowedURLGlobs     []string
+	BlockedURLGlobs     []string
 	// WebDriverLogging    string
 }
 
@@ -86,6 +88,13 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		}
 	} else {
 		opts.Logger.Info("No valid search_engine configured.")
+	}
+
+	if len(opts.AllowedURLGlobs) > 0 {
+		opts.AllowedURLGlobs = append([]string(nil), opts.AllowedURLGlobs...)
+	}
+	if len(opts.BlockedURLGlobs) > 0 {
+		opts.BlockedURLGlobs = append([]string(nil), opts.BlockedURLGlobs...)
 	}
 
 	return &WebFetcher{
@@ -184,6 +193,10 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 
 	w.lock.Lock()
 	defer w.lock.Unlock()
+
+	if err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.BlockedURLGlobs); err != nil {
+		return nil, err
+	}
 
 	type tmpResult struct {
 		webPage   *FetchedWebPage

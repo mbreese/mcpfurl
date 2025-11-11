@@ -43,6 +43,12 @@ var debugCmd = &cobra.Command{
 				if userConfig.MCPFurlCfg.Verbose != nil {
 					fmt.Printf("  verbose        : %t\n", *userConfig.MCPFurlCfg.Verbose)
 				}
+				if len(userConfig.MCPFurlCfg.Allow) > 0 {
+					fmt.Printf("  allow         : %v\n", userConfig.MCPFurlCfg.Allow)
+				}
+				if len(userConfig.MCPFurlCfg.Disallow) > 0 {
+					fmt.Printf("  disallow      : %v\n", userConfig.MCPFurlCfg.Disallow)
+				}
 			}
 			if userConfig.HTTPCfg != nil {
 				fmt.Println("[http]")
@@ -100,6 +106,8 @@ var debugCmd = &cobra.Command{
 		fmt.Printf("mcp_addr       : %s\n", mcpAddr)
 		fmt.Printf("mcp_port       : %d\n", mcpPort)
 		fmt.Printf("image_max_bytes: %d\n", fetchurl.DefaultMaxDownloadBytes)
+		fmt.Printf("fetcher_allow  : %v\n", fetcherAllow)
+		fmt.Printf("fetcher_deny   : %v\n", fetcherDeny)
 	},
 }
 
@@ -121,7 +129,7 @@ func SetLicenseText(txt string) {
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
-	configUsage := "Path to config file (YAML). You can also set MCPFURL_CONFIG."
+	configUsage := "Path to config file (TOML). You can also set MCPFURL_CONFIG."
 	rootCmd.PersistentFlags().StringVar(&configFilePath, "config", "", configUsage)
 	cobra.OnInitialize(loadConfigFile)
 

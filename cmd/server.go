@@ -39,6 +39,8 @@ var mcpCmd = &cobra.Command{
 			SearchEngine:       searchEngine,
 			SearchCachePath:    searchCachePath,
 			SearchCacheExpires: searchCacheExpires,
+			AllowedURLGlobs:    fetcherAllowPatterns(),
+			BlockedURLGlobs:    fetcherDenyPatterns(),
 		}, mcpserver.MCPServerOptions{
 			FetchDesc:  defaultFetchDesc,
 			ImageDesc:  defaultImageDesc,
@@ -79,6 +81,8 @@ var mcpHttpCmd = &cobra.Command{
 			SearchEngine:       searchEngine,
 			SearchCachePath:    searchCachePath,
 			SearchCacheExpires: searchCacheExpires,
+			AllowedURLGlobs:    httpAllowPatterns(cmd),
+			BlockedURLGlobs:    httpDisallowPatterns(cmd),
 		}, mcpserver.MCPServerOptions{
 			Addr:       mcpAddr,
 			Port:       mcpPort,
@@ -93,6 +97,8 @@ var mcpHttpCmd = &cobra.Command{
 var mcpPort int
 var mcpAddr string
 var masterKey string
+var httpAllowGlobs []string
+var httpDisallowGlobs []string
 
 var defaultFetchDesc string
 var defaultImageDesc string
@@ -112,6 +118,8 @@ func init() {
 	mcpHttpCmd.Flags().StringVar(&searchCachePath, "cache", "", "Path to the SQLite search cache database")
 	mcpHttpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	mcpHttpCmd.Flags().StringVar(&masterKey, "master-key", "", "Require HTTP Authorization: Bearer <value> to access the MCP server")
+	mcpHttpCmd.Flags().StringSliceVar(&httpAllowGlobs, "allow", nil, "Glob(s) of URLs the HTTP server may fetch (overrides config when set)")
+	mcpHttpCmd.Flags().StringSliceVar(&httpDisallowGlobs, "disallow", nil, "Glob(s) of URLs the HTTP server must block (overrides config when set)")
 	rootCmd.AddCommand(mcpHttpCmd)
 
 	mcpCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
@@ -125,4 +133,18 @@ func init() {
 	mcpCmd.Flags().StringVar(&searchCachePath, "cache", "", "Path to the SQLite search cache database")
 	mcpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	rootCmd.AddCommand(mcpCmd)
+}
+
+func httpAllowPatterns(cmd *cobra.Command) []string {
+	if cmd.Flags().Changed("allow") {
+		return clonePatterns(httpAllowGlobs)
+	}
+	return fetcherAllowPatterns()
+}
+
+func httpDisallowPatterns(cmd *cobra.Command) []string {
+	if cmd.Flags().Changed("disallow") {
+		return clonePatterns(httpDisallowGlobs)
+	}
+	return fetcherDenyPatterns()
 }

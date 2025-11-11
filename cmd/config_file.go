@@ -3,6 +3,7 @@ package cmd
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
@@ -19,12 +20,14 @@ type MCPCommandConfig struct {
 	WebDriverPort *int    `toml:"web_driver_port"`
 	WebDriverPath *string `toml:"web_driver_path"`
 	// WebDriverLog  *string `toml:"web_driver_log"`
-	UsePandoc    *bool   `toml:"use_pandoc"`
-	SearchEngine *string `toml:"search_engine"`
-	Verbose      *bool   `toml:"verbose"`
-	FetchDesc    *string `toml:"fetch_tool_desc"`
-	SearchDesc   *string `toml:"search_tool_desc"`
-	ImageDesc    *string `toml:"image_tool_desc"`
+	UsePandoc    *bool    `toml:"use_pandoc"`
+	SearchEngine *string  `toml:"search_engine"`
+	Verbose      *bool    `toml:"verbose"`
+	FetchDesc    *string  `toml:"fetch_tool_desc"`
+	SearchDesc   *string  `toml:"search_tool_desc"`
+	ImageDesc    *string  `toml:"image_tool_desc"`
+	Allow        []string `toml:"allow"`
+	Disallow     []string `toml:"disallow"`
 }
 
 type MCPHTTPCommandConfig struct {
@@ -47,6 +50,8 @@ type CacheConfig struct {
 var (
 	configFilePath string
 	userConfig     *appConfig
+	fetcherAllow   []string
+	fetcherDeny    []string
 )
 
 func loadConfigFile() {
@@ -84,6 +89,7 @@ func loadConfigFile() {
 	// 	fmt.Println("=========================")
 	// }
 	userConfig = &cfg
+	setFetcherAccessLists(cfg.MCPFurlCfg)
 }
 
 func applyMCPConfig(cmd *cobra.Command) {
@@ -158,6 +164,7 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPCommandConfig) {
 	if cfg.SearchDesc != nil {
 		defaultSearchDesc = *cfg.SearchDesc
 	}
+	setFetcherAccessLists(cfg)
 }
 
 func applyGoogleCustomConfig(cmd *cobra.Command) {
@@ -195,4 +202,47 @@ func applyHTTPMasterKeyEnv(cmd *cobra.Command) {
 	if env := os.Getenv("MCPFETCH_MASTER_KEY"); env != "" {
 		masterKey = env
 	}
+}
+
+func setFetcherAccessLists(cfg *MCPCommandConfig) {
+	if cfg == nil {
+		fetcherAllow = nil
+		fetcherDeny = nil
+		return
+	}
+	fetcherAllow = normalizePatterns(cfg.Allow)
+	fetcherDeny = normalizePatterns(cfg.Disallow)
+}
+
+func normalizePatterns(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		if trimmed := strings.TrimSpace(v); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func fetcherAllowPatterns() []string {
+	return clonePatterns(fetcherAllow)
+}
+
+func fetcherDenyPatterns() []string {
+	return clonePatterns(fetcherDeny)
+}
+
+func clonePatterns(src []string) []string {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make([]string, len(src))
+	copy(out, src)
+	return out
 }
