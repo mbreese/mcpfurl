@@ -39,6 +39,10 @@ var mcpCmd = &cobra.Command{
 			SearchEngine:       searchEngine,
 			SearchCachePath:    searchCachePath,
 			SearchCacheExpires: searchCacheExpires,
+		}, mcpserver.MCPServerOptions{
+			FetchDesc:  defaultFetchDesc,
+			ImageDesc:  defaultImageDesc,
+			SearchDesc: defaultSearchDesc,
 		})
 	},
 }
@@ -63,7 +67,7 @@ var mcpHttpCmd = &cobra.Command{
 		if verbose {
 			logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		}
-		mcpserver.StartHTTP(mcpAddr, mcpPort, fetchurl.WebFetcherOptions{
+		mcpserver.StartHTTP(fetchurl.WebFetcherOptions{
 			WebDriverPort:    webDriverPort,
 			ChromeDriverPath: webDriverPath,
 			// WebDriverLogging:   webDriverLog,
@@ -75,13 +79,24 @@ var mcpHttpCmd = &cobra.Command{
 			SearchEngine:       searchEngine,
 			SearchCachePath:    searchCachePath,
 			SearchCacheExpires: searchCacheExpires,
-		}, masterKey)
+		}, mcpserver.MCPServerOptions{
+			Addr:       mcpAddr,
+			Port:       mcpPort,
+			MasterKey:  masterKey,
+			FetchDesc:  defaultFetchDesc,
+			ImageDesc:  defaultImageDesc,
+			SearchDesc: defaultSearchDesc,
+		})
 	},
 }
 
 var mcpPort int
 var mcpAddr string
 var masterKey string
+
+var defaultFetchDesc string
+var defaultImageDesc string
+var defaultSearchDesc string
 
 func init() {
 	mcpHttpCmd.Flags().IntVarP(&mcpPort, "port", "p", 8080, "Start the MCP server on this port")

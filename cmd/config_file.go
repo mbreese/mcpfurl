@@ -22,6 +22,9 @@ type MCPCommandConfig struct {
 	UsePandoc    *bool   `toml:"use_pandoc"`
 	SearchEngine *string `toml:"search_engine"`
 	Verbose      *bool   `toml:"verbose"`
+	FetchDesc    *string `toml:"fetch_tool_desc"`
+	SearchDesc   *string `toml:"search_tool_desc"`
+	ImageDesc    *string `toml:"image_tool_desc"`
 }
 
 type MCPHTTPCommandConfig struct {
@@ -145,6 +148,15 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPCommandConfig) {
 	}
 	if cfg.Verbose != nil && !cmd.Flags().Changed("verbose") {
 		verbose = *cfg.Verbose
+	}
+	if cfg.FetchDesc != nil {
+		defaultFetchDesc = *cfg.FetchDesc
+	}
+	if cfg.ImageDesc != nil {
+		defaultImageDesc = *cfg.ImageDesc
+	}
+	if cfg.SearchDesc != nil {
+		defaultSearchDesc = *cfg.SearchDesc
 	}
 }
 

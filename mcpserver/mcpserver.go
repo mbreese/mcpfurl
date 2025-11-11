@@ -46,8 +46,18 @@ type ImageFetchOutput struct {
 	DataBase64  string `json:"data_base64" jsonschema:"Base64 encoded binary of the downloaded resource"`
 }
 
+type MCPServerOptions struct {
+	Addr       string
+	Port       int
+	MasterKey  string
+	FetchDesc  string
+	ImageDesc  string
+	SearchDesc string
+}
+
 var fetcher *fetchurl.WebFetcher
-var server *mcp.Server
+
+// var server *mcp.Server
 var logger *slog.Logger
 
 func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParams) (*mcp.CallToolResult, *WebFetchOutput, error) {
@@ -143,23 +153,33 @@ func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchPa
 	}, nil
 }
 
-func init() {
-	server = mcp.NewServer(&mcp.Implementation{Name: "mcpfurl", Version: "v0.0.1"}, nil)
+func createMCPServer(opts MCPServerOptions) *mcp.Server {
+	if opts.FetchDesc == "" {
+		opts.FetchDesc = "Fetch a webpage and return the content in Markdown format"
+	}
+	if opts.SearchDesc == "" {
+		opts.SearchDesc = "Perform a web search and return the results in Markdown format"
+	}
+	if opts.ImageDesc == "" {
+		opts.ImageDesc = "Download an image or binary file and return it as base64 data"
+	}
+	server := mcp.NewServer(&mcp.Implementation{Name: "mcpfurl", Version: "v0.0.1"}, nil)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "web_fetch",
-		Description: "Fetch a webpage and return the content in Markdown format",
+		Description: opts.FetchDesc,
 	}, fetchPage)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "web_search",
-		Description: "Perform a web search and return the results in Markdown format",
+		Description: opts.SearchDesc,
 	}, webSearch)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "image_fetch",
-		Description: "Download an image or binary file and return it as base64 data",
+		Description: opts.ImageDesc,
 	}, fetchImage)
+	return server
 }
 
-func StartStdio(opts fetchurl.WebFetcherOptions) {
+func StartStdio(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	opts.ConvertAbsoluteHref = true
 	logger = opts.Logger
 	if logger == nil {
@@ -175,12 +195,14 @@ func StartStdio(opts fetchurl.WebFetcherOptions) {
 	}
 	defer fetcher.Stop()
 
+	server := createMCPServer(mcpOpts)
+
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey string) {
+func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	opts.ConvertAbsoluteHref = true
 	logger = opts.Logger
 	if logger == nil {
@@ -198,6 +220,8 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 	}
 	defer fetcher.Stop()
 
+	server := createMCPServer(mcpOpts)
+
 	handler := mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server {
 			return server
@@ -205,11 +229,11 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 	)
 
 	authWrapper := func(next http.Handler) http.Handler {
-		if masterKey == "" {
+		if mcpOpts.MasterKey == "" {
 			return next
 		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			expected := "Bearer " + masterKey
+			expected := "Bearer " + mcpOpts.MasterKey
 			if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte(expected)) != 1 {
 				logger.Warn("Unauthorized request", slog.String("remote_addr", r.RemoteAddr), slog.String("path", r.URL.Path))
 				w.Header().Set("WWW-Authenticate", "Bearer")
@@ -227,7 +251,7 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 	mux.Handle("/mcp", authWrapper(handler))
 
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", addr, port),
+		Addr:    fmt.Sprintf("%s:%d", mcpOpts.Addr, mcpOpts.Port),
 		Handler: mux,
 	}
 
@@ -244,7 +268,7 @@ func StartHTTP(addr string, port int, opts fetchurl.WebFetcherOptions, masterKey
 		}
 	}()
 
-	logger.Info(fmt.Sprintf("Starting mcpfurl MCP server on %s:%d", addr, port))
+	logger.Info(fmt.Sprintf("Starting mcpfurl MCP server on %s:%d", mcpOpts.Addr, mcpOpts.Port))
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error(fmt.Sprintf("HTTP server error: %v", err))
 	}

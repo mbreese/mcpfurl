@@ -6,6 +6,9 @@ web_driver_path = "/usr/bin/chromedriver"
 use_pandoc = false
 search_engine = "google_custom"
 verbose = false
+fetch_tool_desc = "(optional) Custom description for the MCP fetch tool"
+search_tool_desc = "(optional) Custom description for the MCP search tool"
+image_tool_desc = "(optional) Custom description for the MCP image fetch tool"
 
 [http]
 addr = "0.0.0.0"
