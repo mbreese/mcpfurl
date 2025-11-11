@@ -4,42 +4,41 @@ import (
 	"log"
 	"os"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 type appConfig struct {
-	MCP          *MCPCommandConfig     `yaml:"mcp"`
-	HTTP         *MCPHTTPCommandConfig `yaml:"http"`
-	GoogleCustom *GoogleCustomConfig   `yaml:"google_custom"`
-	Cache        *CacheConfig          `yaml:"cache"`
+	MCPFurlCfg      *MCPCommandConfig     `toml:"mcpfurl"`
+	HTTPCfg         *MCPHTTPCommandConfig `toml:"http"`
+	GoogleCustomCfg *GoogleCustomConfig   `toml:"google_custom"`
+	CacheCfg        *CacheConfig          `toml:"cache"`
 }
 
 type MCPCommandConfig struct {
-	WebDriverPort *int    `yaml:"web_driver_port"`
-	WebDriverPath *string `yaml:"web_driver_path"`
-	// WebDriverLog  *string `yaml:"web_driver_log"`
-	UsePandoc    *bool   `yaml:"use_pandoc"`
-	SearchEngine *string `yaml:"search_engine"`
-	SearchCache  *string `yaml:"search_cache"`
-	Verbose      *bool   `yaml:"verbose"`
+	WebDriverPort *int    `toml:"web_driver_port"`
+	WebDriverPath *string `toml:"web_driver_path"`
+	// WebDriverLog  *string `toml:"web_driver_log"`
+	UsePandoc    *bool   `toml:"use_pandoc"`
+	SearchEngine *string `toml:"search_engine"`
+	Verbose      *bool   `toml:"verbose"`
 }
 
 type MCPHTTPCommandConfig struct {
 	MCPCommandConfig
-	Addr      *string `yaml:"addr"`
-	Port      *int    `yaml:"port"`
-	MasterKey *string `yaml:"master_key"`
+	Addr      *string `toml:"addr"`
+	Port      *int    `toml:"port"`
+	MasterKey *string `toml:"master_key"`
 }
 
 type GoogleCustomConfig struct {
-	Cx  *string `yaml:"cx"`
-	Key *string `yaml:"key"`
+	Cx  *string `toml:"cx"`
+	Key *string `toml:"key"`
 }
 
 type CacheConfig struct {
-	SearchDB *string `yaml:"db_path"`
-	Expires  *string `yaml:"expires"`
+	SearchDB *string `toml:"db_path"`
+	Expires  *string `toml:"expires"`
 }
 
 var (
@@ -70,13 +69,13 @@ func loadConfigFile() {
 		return
 	}
 	var cfg appConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := toml.Unmarshal(data, &cfg); err != nil {
 		log.Fatalf("error parsing config file %s: %v", path, err)
 	}
 
 	// Keep this commented code as a reference for troubleshooting config issues
 	///////////////
-	// if dump, err := yaml.Marshal(cfg); err == nil {
+	// if dump, err := toml.Marshal(cfg); err == nil {
 	// 	fmt.Println("===== loaded config =====")
 	// 	fmt.Printf("%s\n", dump)
 	// 	fmt.Println("=========================")
@@ -87,10 +86,10 @@ func loadConfigFile() {
 func applyMCPConfig(cmd *cobra.Command) {
 	applyCacheConfig(cmd)
 	applyGoogleCustomConfig(cmd)
-	if userConfig == nil || userConfig.MCP == nil {
+	if userConfig == nil || userConfig.MCPFurlCfg == nil {
 		return
 	}
-	applyCommonConfig(cmd, userConfig.MCP)
+	applyCommonConfig(cmd, userConfig.MCPFurlCfg)
 }
 
 func applyMCPHTTPConfig(cmd *cobra.Command) {
@@ -101,7 +100,7 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 		return
 	}
 
-	if cfg := userConfig.HTTP; cfg != nil {
+	if cfg := userConfig.HTTPCfg; cfg != nil {
 		applyCommonConfig(cmd, &cfg.MCPCommandConfig)
 		if cfg.Addr != nil && !cmd.Flags().Changed("addr") {
 			mcpAddr = *cfg.Addr
@@ -116,8 +115,8 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 		return
 	}
 
-	if userConfig.MCP != nil {
-		applyCommonConfig(cmd, userConfig.MCP)
+	if userConfig.MCPFurlCfg != nil {
+		applyCommonConfig(cmd, userConfig.MCPFurlCfg)
 	}
 
 	// ENV loading happens after loading the config from a file
@@ -150,10 +149,10 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPCommandConfig) {
 }
 
 func applyGoogleCustomConfig(cmd *cobra.Command) {
-	if userConfig == nil || userConfig.GoogleCustom == nil {
+	if userConfig == nil || userConfig.GoogleCustomCfg == nil {
 		return
 	}
-	cfg := userConfig.GoogleCustom
+	cfg := userConfig.GoogleCustomCfg
 
 	if cfg.Cx != nil && !cmd.Flags().Changed("google-cx") {
 		googleCx = *cfg.Cx
@@ -164,10 +163,10 @@ func applyGoogleCustomConfig(cmd *cobra.Command) {
 }
 
 func applyCacheConfig(cmd *cobra.Command) {
-	if userConfig == nil || userConfig.Cache == nil {
+	if userConfig == nil || userConfig.CacheCfg == nil {
 		return
 	}
-	cfg := userConfig.Cache
+	cfg := userConfig.CacheCfg
 
 	if cfg.SearchDB != nil && !cmd.Flags().Changed("search-cache") {
 		searchCachePath = *cfg.SearchDB

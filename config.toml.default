@@ -1,0 +1,21 @@
+# Default configuration for the mcpfurl CLI.
+
+[mcpfurl]
+web_driver_port = 9515
+web_driver_path = "/usr/bin/chromedriver"
+use_pandoc = false
+search_engine = "google_custom"
+verbose = false
+
+[http]
+addr = "0.0.0.0"
+port = 8080
+master_key = ""
+
+[cache]
+db_path = ""
+expires = "14d"
+
+[google_custom]
+cx = ""
+key = ""

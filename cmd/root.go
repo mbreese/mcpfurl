@@ -23,55 +23,55 @@ var debugCmd = &cobra.Command{
 		if userConfig == nil {
 			fmt.Println("(no config loaded)")
 		} else {
-			if userConfig.MCP != nil {
+			if userConfig.MCPFurlCfg != nil {
 				fmt.Println("[mcp]")
-				if userConfig.MCP.WebDriverPort != nil {
-					fmt.Printf("  web_driver_port: %d\n", *userConfig.MCP.WebDriverPort)
+				if userConfig.MCPFurlCfg.WebDriverPort != nil {
+					fmt.Printf("  web_driver_port: %d\n", *userConfig.MCPFurlCfg.WebDriverPort)
 				}
-				if userConfig.MCP.WebDriverPath != nil {
-					fmt.Printf("  web_driver_path: %s\n", *userConfig.MCP.WebDriverPath)
+				if userConfig.MCPFurlCfg.WebDriverPath != nil {
+					fmt.Printf("  web_driver_path: %s\n", *userConfig.MCPFurlCfg.WebDriverPath)
 				}
 				// if userConfig.MCP.WebDriverLog != nil {
 				// 	fmt.Printf("  web_driver_log : %s\n", *userConfig.MCP.WebDriverLog)
 				// }
-				if userConfig.MCP.UsePandoc != nil {
-					fmt.Printf("  use_pandoc     : %t\n", *userConfig.MCP.UsePandoc)
+				if userConfig.MCPFurlCfg.UsePandoc != nil {
+					fmt.Printf("  use_pandoc     : %t\n", *userConfig.MCPFurlCfg.UsePandoc)
 				}
-				if userConfig.MCP.SearchEngine != nil {
-					fmt.Printf("  search_engine  : %s\n", *userConfig.MCP.SearchEngine)
+				if userConfig.MCPFurlCfg.SearchEngine != nil {
+					fmt.Printf("  search_engine  : %s\n", *userConfig.MCPFurlCfg.SearchEngine)
 				}
-				if userConfig.MCP.Verbose != nil {
-					fmt.Printf("  verbose        : %t\n", *userConfig.MCP.Verbose)
+				if userConfig.MCPFurlCfg.Verbose != nil {
+					fmt.Printf("  verbose        : %t\n", *userConfig.MCPFurlCfg.Verbose)
 				}
 			}
-			if userConfig.HTTP != nil {
+			if userConfig.HTTPCfg != nil {
 				fmt.Println("[http]")
-				if userConfig.HTTP.Addr != nil {
-					fmt.Printf("  addr.     : %s\n", *userConfig.HTTP.Addr)
+				if userConfig.HTTPCfg.Addr != nil {
+					fmt.Printf("  addr.     : %s\n", *userConfig.HTTPCfg.Addr)
 				}
-				if userConfig.HTTP.Port != nil {
-					fmt.Printf("  port.     : %d\n", *userConfig.HTTP.Port)
+				if userConfig.HTTPCfg.Port != nil {
+					fmt.Printf("  port.     : %d\n", *userConfig.HTTPCfg.Port)
 				}
-				if userConfig.HTTP.MasterKey != nil {
+				if userConfig.HTTPCfg.MasterKey != nil {
 					fmt.Printf("  master_key: ********\n")
 				}
 			}
-			if userConfig.GoogleCustom != nil {
+			if userConfig.GoogleCustomCfg != nil {
 				fmt.Println("[google_custom]")
-				if userConfig.GoogleCustom.Cx != nil {
-					fmt.Printf("  cx : %s\n", *userConfig.GoogleCustom.Cx)
+				if userConfig.GoogleCustomCfg.Cx != nil {
+					fmt.Printf("  cx : %s\n", *userConfig.GoogleCustomCfg.Cx)
 				}
-				if userConfig.GoogleCustom.Key != nil {
-					fmt.Printf("  key: %s\n", *userConfig.GoogleCustom.Key)
+				if userConfig.GoogleCustomCfg.Key != nil {
+					fmt.Printf("  key: %s\n", *userConfig.GoogleCustomCfg.Key)
 				}
 			}
-			if userConfig.Cache != nil {
+			if userConfig.CacheCfg != nil {
 				fmt.Println("[cache]")
-				if userConfig.Cache.SearchDB != nil {
-					fmt.Printf("  db_path : %s\n", *userConfig.Cache.SearchDB)
+				if userConfig.CacheCfg.SearchDB != nil {
+					fmt.Printf("  db_path : %s\n", *userConfig.CacheCfg.SearchDB)
 				}
-				if userConfig.Cache.Expires != nil {
-					fmt.Printf("  expires: %s\n", *userConfig.Cache.Expires)
+				if userConfig.CacheCfg.Expires != nil {
+					fmt.Printf("  expires: %s\n", *userConfig.CacheCfg.Expires)
 				}
 			}
 		}
@@ -92,7 +92,7 @@ var debugCmd = &cobra.Command{
 		fmt.Printf("cache_expires  : %s\n", searchCacheExpiresStr)
 		fmt.Printf("google_cx      : %s\n", googleCx)
 		fmt.Printf("google_key     : %s\n", googleKey)
-		if userConfig.HTTP.MasterKey != nil && *userConfig.HTTP.MasterKey != "" {
+		if userConfig.HTTPCfg.MasterKey != nil && *userConfig.HTTPCfg.MasterKey != "" {
 			fmt.Printf("master_key     : ********\n")
 		} else {
 			fmt.Printf("master_key     : \n")
