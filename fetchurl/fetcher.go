@@ -185,18 +185,21 @@ func (w *WebFetcher) Start() error {
 }
 
 func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector string) (*FetchedWebPage, error) {
+
+	// check allow/disallow lists first
+	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.BlockedURLGlobs); err != nil {
+		return nil, err
+	} else if !allowed {
+		return nil, err
+	}
+
 	// hold onto the lock for this instance. If we need to make
 	// more than one request at a time, it will require more than
 	// one Webdriver session (and port) and thus a WebFetcher.
 	//
 	// So, each WebFetcher can only make one request at a time.
-
 	w.lock.Lock()
 	defer w.lock.Unlock()
-
-	if err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.BlockedURLGlobs); err != nil {
-		return nil, err
-	}
 
 	type tmpResult struct {
 		webPage   *FetchedWebPage
