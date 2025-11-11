@@ -46,8 +46,8 @@ var debugCmd = &cobra.Command{
 				if len(userConfig.MCPFurlCfg.Allow) > 0 {
 					fmt.Printf("  allow         : %v\n", userConfig.MCPFurlCfg.Allow)
 				}
-				if len(userConfig.MCPFurlCfg.Disallow) > 0 {
-					fmt.Printf("  disallow      : %v\n", userConfig.MCPFurlCfg.Disallow)
+				if len(userConfig.MCPFurlCfg.Deny) > 0 {
+					fmt.Printf("  disallow      : %v\n", userConfig.MCPFurlCfg.Deny)
 				}
 			}
 			if userConfig.HTTPCfg != nil {
@@ -98,7 +98,7 @@ var debugCmd = &cobra.Command{
 		fmt.Printf("cache_expires  : %s\n", searchCacheExpiresStr)
 		fmt.Printf("google_cx      : %s\n", googleCx)
 		fmt.Printf("google_key     : %s\n", googleKey)
-		if userConfig.HTTPCfg.MasterKey != nil && *userConfig.HTTPCfg.MasterKey != "" {
+		if userConfig != nil && userConfig.HTTPCfg != nil && userConfig.HTTPCfg.MasterKey != nil && *userConfig.HTTPCfg.MasterKey != "" {
 			fmt.Printf("master_key     : ********\n")
 		} else {
 			fmt.Printf("master_key     : \n")
@@ -106,8 +106,8 @@ var debugCmd = &cobra.Command{
 		fmt.Printf("mcp_addr       : %s\n", mcpAddr)
 		fmt.Printf("mcp_port       : %d\n", mcpPort)
 		fmt.Printf("image_max_bytes: %d\n", fetchurl.DefaultMaxDownloadBytes)
-		fmt.Printf("fetcher_allow  : %v\n", fetcherAllow)
-		fmt.Printf("fetcher_deny   : %v\n", fetcherDeny)
+		fmt.Printf("allow  : %v\n", httpAllowGlobs)
+		fmt.Printf("deny   : %v\n", httpDenyGlobs)
 	},
 }
 

@@ -17,6 +17,10 @@ var fetchCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		convertToMarkdown = convertToMarkdown || convertToMarkdown2
+		applyMCPConfig(cmd)
+		applyMCPHTTPConfig(cmd)
+		applyGoogleCustomConfig(cmd)
+		applyCacheConfig(cmd)
 
 		if len(args) < 1 {
 			fmt.Fprintln(os.Stderr, "You must specify a URL")
@@ -41,8 +45,10 @@ var fetchCmd = &cobra.Command{
 			WebDriverPort:       webDriverPort,
 			ChromeDriverPath:    webDriverPath,
 			// WebDriverLogging:    webDriverLog,
-			Logger:    logger,
-			UsePandoc: usePandoc,
+			Logger:          logger,
+			UsePandoc:       usePandoc,
+			AllowedURLGlobs: httpAllowGlobs,
+			DenyURLGlobs:    httpDenyGlobs,
 		})
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)

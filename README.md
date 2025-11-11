@@ -57,7 +57,7 @@ web_driver_path = "/usr/bin/chromedriver"
 use_pandoc = false
 search_engine = "google_custom"
 allow = []
-disallow = []
+deny = []
 
 [http]
 addr = "0.0.0.0"
@@ -73,7 +73,7 @@ cx = ""
 key = ""
 ```
 
-Only the settings you override need to be present in your config file. The CLI flags mirror these names (`--wd-port`, `--search-cache`, etc.). Set `allow`/`disallow` under `[mcpfurl]` to control which URLs the server may fetch; when `allow` is empty every URL is permitted unless a `disallow` glob matches.
+Only the settings you override need to be present in your config file. The CLI flags mirror these names (`--wd-port`, `--search-cache`, etc.). Set `allow`/`deny` under `[mcpfurl]` to control which URLs the server may fetch; when `allow` is empty every URL is permitted unless a `deny` glob matches.
 
 ## Dependencies
 

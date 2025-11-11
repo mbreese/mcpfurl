@@ -10,13 +10,13 @@ import (
 )
 
 type appConfig struct {
-	MCPFurlCfg      *MCPCommandConfig     `toml:"mcpfurl"`
-	HTTPCfg         *MCPHTTPCommandConfig `toml:"http"`
-	GoogleCustomCfg *GoogleCustomConfig   `toml:"google_custom"`
-	CacheCfg        *CacheConfig          `toml:"cache"`
+	MCPFurlCfg      *MCPFurlConfig       `toml:"mcpfurl"`
+	HTTPCfg         *MCPHTTPServerConfig `toml:"http"`
+	GoogleCustomCfg *GoogleCustomConfig  `toml:"google_custom"`
+	CacheCfg        *CacheConfig         `toml:"cache"`
 }
 
-type MCPCommandConfig struct {
+type MCPFurlConfig struct {
 	WebDriverPort *int    `toml:"web_driver_port"`
 	WebDriverPath *string `toml:"web_driver_path"`
 	// WebDriverLog  *string `toml:"web_driver_log"`
@@ -27,11 +27,11 @@ type MCPCommandConfig struct {
 	SearchDesc   *string  `toml:"search_tool_desc"`
 	ImageDesc    *string  `toml:"image_tool_desc"`
 	Allow        []string `toml:"allow"`
-	Disallow     []string `toml:"disallow"`
+	Deny         []string `toml:"deny"`
 }
 
-type MCPHTTPCommandConfig struct {
-	MCPCommandConfig
+type MCPHTTPServerConfig struct {
+	MCPFurlConfig
 	Addr      *string `toml:"addr"`
 	Port      *int    `toml:"port"`
 	MasterKey *string `toml:"master_key"`
@@ -47,12 +47,8 @@ type CacheConfig struct {
 	Expires  *string `toml:"expires"`
 }
 
-var (
-	configFilePath string
-	userConfig     *appConfig
-	fetcherAllow   []string
-	fetcherDeny    []string
-)
+var configFilePath string
+var userConfig *appConfig // this holds the active merged config (useful for debugging)
 
 func loadConfigFile() {
 	path := configFilePath
@@ -89,7 +85,6 @@ func loadConfigFile() {
 	// 	fmt.Println("=========================")
 	// }
 	userConfig = &cfg
-	setFetcherAccessLists(cfg.MCPFurlCfg)
 }
 
 func applyMCPConfig(cmd *cobra.Command) {
@@ -110,7 +105,7 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 	}
 
 	if cfg := userConfig.HTTPCfg; cfg != nil {
-		applyCommonConfig(cmd, &cfg.MCPCommandConfig)
+		applyCommonConfig(cmd, &cfg.MCPFurlConfig)
 		if cfg.Addr != nil && !cmd.Flags().Changed("addr") {
 			mcpAddr = *cfg.Addr
 		}
@@ -132,7 +127,7 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 	applyHTTPMasterKeyEnv(cmd)
 }
 
-func applyCommonConfig(cmd *cobra.Command, cfg *MCPCommandConfig) {
+func applyCommonConfig(cmd *cobra.Command, cfg *MCPFurlConfig) {
 	if cfg == nil {
 		return
 	}
@@ -164,7 +159,12 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPCommandConfig) {
 	if cfg.SearchDesc != nil {
 		defaultSearchDesc = *cfg.SearchDesc
 	}
-	setFetcherAccessLists(cfg)
+	if len(cfg.Allow) > 0 && !cmd.Flags().Changed("allow") {
+		httpAllowGlobs = normalizePatterns(cfg.Allow)
+	}
+	if len(cfg.Deny) > 0 && !cmd.Flags().Changed("disallow") {
+		httpDenyGlobs = normalizePatterns(cfg.Deny)
+	}
 }
 
 func applyGoogleCustomConfig(cmd *cobra.Command) {
@@ -204,16 +204,6 @@ func applyHTTPMasterKeyEnv(cmd *cobra.Command) {
 	}
 }
 
-func setFetcherAccessLists(cfg *MCPCommandConfig) {
-	if cfg == nil {
-		fetcherAllow = nil
-		fetcherDeny = nil
-		return
-	}
-	fetcherAllow = normalizePatterns(cfg.Allow)
-	fetcherDeny = normalizePatterns(cfg.Disallow)
-}
-
 func normalizePatterns(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -230,19 +220,19 @@ func normalizePatterns(values []string) []string {
 	return out
 }
 
-func fetcherAllowPatterns() []string {
-	return clonePatterns(fetcherAllow)
-}
+// func fetcherAllowPatterns() []string {
+// 	return clonePatterns(fetcherAllow)
+// }
 
-func fetcherDenyPatterns() []string {
-	return clonePatterns(fetcherDeny)
-}
+// func fetcherDenyPatterns() []string {
+// 	return clonePatterns(fetcherDeny)
+// }
 
-func clonePatterns(src []string) []string {
-	if len(src) == 0 {
-		return nil
-	}
-	out := make([]string, len(src))
-	copy(out, src)
-	return out
-}
+// func clonePatterns(src []string) []string {
+// 	if len(src) == 0 {
+// 		return nil
+// 	}
+// 	out := make([]string, len(src))
+// 	copy(out, src)
+// 	return out
+// }

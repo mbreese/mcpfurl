@@ -13,8 +13,13 @@ fetch_tool_desc = "(optional) Custom description for the MCP fetch tool"
 search_tool_desc = "(optional) Custom description for the MCP search tool"
 image_tool_desc = "(optional) Custom description for the MCP image fetch tool"
 # Globs evaluated against the full URL (ex: https://example.com/docs/*)
-allow = []
-disallow = []
+allow = [
+  "https://example.com/*",
+  "https://*.wikipedia.org/*"
+]
+deny = [
+  "https://example.com/private/*"
+]
 
 [http]
 addr = "0.0.0.0"

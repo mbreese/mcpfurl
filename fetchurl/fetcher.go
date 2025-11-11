@@ -36,7 +36,7 @@ type WebFetcherOptions struct {
 	SearchCachePath     string
 	SearchCacheExpires  time.Duration
 	AllowedURLGlobs     []string
-	BlockedURLGlobs     []string
+	DenyURLGlobs        []string
 	// WebDriverLogging    string
 }
 
@@ -93,8 +93,8 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 	if len(opts.AllowedURLGlobs) > 0 {
 		opts.AllowedURLGlobs = append([]string(nil), opts.AllowedURLGlobs...)
 	}
-	if len(opts.BlockedURLGlobs) > 0 {
-		opts.BlockedURLGlobs = append([]string(nil), opts.BlockedURLGlobs...)
+	if len(opts.DenyURLGlobs) > 0 {
+		opts.DenyURLGlobs = append([]string(nil), opts.DenyURLGlobs...)
 	}
 
 	return &WebFetcher{
@@ -187,7 +187,7 @@ func (w *WebFetcher) Start() error {
 func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector string) (*FetchedWebPage, error) {
 
 	// check allow/disallow lists first
-	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.BlockedURLGlobs); err != nil {
+	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.DenyURLGlobs); err != nil {
 		return nil, err
 	} else if !allowed {
 		return nil, err

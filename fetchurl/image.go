@@ -24,7 +24,7 @@ func (w *WebFetcher) DownloadResource(ctx context.Context, targetURL string) (*D
 	}
 
 	// check allow/disallow lists first
-	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.BlockedURLGlobs); err != nil {
+	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.DenyURLGlobs); err != nil {
 		return nil, err
 	} else if !allowed {
 		return nil, err

@@ -28,12 +28,14 @@ type WebSearchParams struct {
 
 type WebFetchOutput struct {
 	Content string `json:"content" jsonschema:"The content of the webpage in Markdown format"`
+	Error   string `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
 type WebSearchOutput struct {
 	Query           string                  `json:"query" jsonschema:"The query for this search"`
 	ResultsMarkdown string                  `json:"markdown,omitempty" jsonschema:"The search results in Markdown format"`
 	Results         []fetchurl.SearchResult `json:"results,omitempty" jsonschema:"The search results in JSON format"`
+	Error           string                  `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
 type ImageFetchParams struct {
@@ -44,6 +46,7 @@ type ImageFetchOutput struct {
 	Filename    string `json:"filename,omitempty" jsonschema:"The detected filename from the URL path"`
 	ContentType string `json:"content_type,omitempty" jsonschema:"The Content-Type header returned by the server"`
 	DataBase64  string `json:"data_base64" jsonschema:"Base64 encoded binary of the downloaded resource"`
+	Error       string `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
 type MCPServerOptions struct {
@@ -67,17 +70,16 @@ func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParam
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: "Missing URL"},
 			},
-		}, nil, nil
+		}, &WebFetchOutput{Error: "Missing URL"}, nil
 	}
-	logger.Info(fmt.Sprintf("Fetching URL: %s", args.URL))
 	webpage, err := fetcher.FetchURL(ctx, args.URL, "")
 	if err != nil {
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Error fetching URL: %s => %s", args.URL, err)},
+				&mcp.TextContent{Text: fmt.Sprintf("Error fetching URL: %s => %v", args.URL, err)},
 			},
-		}, nil, nil
+		}, &WebFetchOutput{Error: fmt.Sprintf("Error fetching URL: %s => %v", args.URL, err)}, nil
 	}
 
 	if markdown, err := fetcher.WebpageToMarkdownYaml(webpage); err == nil {
@@ -89,7 +91,7 @@ func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParam
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: fmt.Sprintf("Error converting webpage: %s", err)},
 		},
-	}, nil, nil
+	}, &WebFetchOutput{Error: fmt.Sprintf("Error converting webpage: %s", err)}, nil
 }
 
 func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchParams) (*mcp.CallToolResult, *WebSearchOutput, error) {
@@ -99,7 +101,7 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: "Missing argument: \"query\""},
 			},
-		}, nil, nil
+		}, &WebSearchOutput{Query: args.Query, Error: "Missing argument: \"query\""}, nil
 	}
 
 	logger.Info(fmt.Sprintf("Search: %s", args.Query))
@@ -111,7 +113,7 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: fmt.Sprintf("Error: %v", err)},
 			},
-		}, nil, nil
+		}, &WebSearchOutput{Query: args.Query, Error: fmt.Sprintf("Error: %v", err)}, nil
 	}
 
 	if args.OutputMarkdown {
@@ -128,22 +130,26 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchParams) (*mcp.CallToolResult, *ImageFetchOutput, error) {
 	if args.URL == "" {
 		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: "Missing URL"},
-			},
-		}, nil, nil
+				IsError: true,
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: "Missing URL"},
+				},
+			}, &ImageFetchOutput{
+				Error: "Missing URL",
+			}, nil
 	}
 
 	logger.Info(fmt.Sprintf("Downloading asset: %s", args.URL))
 	resource, err := fetcher.DownloadResource(ctx, args.URL)
 	if err != nil {
 		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: err.Error()},
-			},
-		}, nil, nil
+				IsError: true,
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: err.Error()},
+				},
+			}, &ImageFetchOutput{
+				Error: err.Error(),
+			}, nil
 	}
 
 	return nil, &ImageFetchOutput{
