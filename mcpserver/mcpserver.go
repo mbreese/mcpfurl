@@ -133,7 +133,7 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 	if args.OutputMarkdown {
 		ret := "# Search results\n\n"
 		for _, result := range results {
-			ret += fmt.Sprintf("* [%s](%s) - %s\n", result.Title, result.Link, result.Snippet)
+ 			ret += fmt.Sprintf("Title: %s\nLink: %s\nSnippet: %s\n\n---\n\n", result.Title, result.Link, result.Snippet)
 		}
 		return nil, &WebSearchOutput{Query: args.Query, ResultsMarkdown: ret}, nil
 	}
