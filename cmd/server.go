@@ -149,6 +149,7 @@ func init() {
 	mcpHttpCmd.Flags().StringVar(&summaryLLMModel, "llm-model", "", "LLM Model name")
 	mcpHttpCmd.Flags().StringVar(&summaryAPIKey, "llm-api-key", "", "LLM API Key (will also read LLM_API_KEY env var)")
 	mcpHttpCmd.Flags().StringVar(&summaryBaseURL, "llm-base-url", "", "LLM Base URL")
+	mcpHttpCmd.Flags().BoolVar(&summaryShort, "llm-short", false, "Return a short summary (default: auto length)")
 	rootCmd.AddCommand(mcpHttpCmd)
 
 	mcpCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
@@ -168,6 +169,7 @@ func init() {
 	mcpCmd.Flags().StringVar(&summaryLLMModel, "llm-model", "", "LLM Model name")
 	mcpCmd.Flags().StringVar(&summaryAPIKey, "llm-api-key", "", "LLM API Key (will also read LLM_API_KEY env var)")
 	mcpCmd.Flags().StringVar(&summaryBaseURL, "llm-base-url", "", "LLM Base URL")
+	mcpCmd.Flags().BoolVar(&summaryShort, "llm-short", false, "Return a short summary (default: auto length)")
 	rootCmd.AddCommand(mcpCmd)
 }
 
