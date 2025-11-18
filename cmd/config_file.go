@@ -47,6 +47,7 @@ type SummaryLLMConfig struct {
 	BaseURL *string `toml:"base_url"`
 	ApiKey  *string `toml:"api_key"`
 	Model   *string `toml:"model"`
+	Short   *bool   `toml:"short"`
 }
 
 type GoogleCustomConfig struct {
@@ -225,6 +226,9 @@ func applySummaryConfig(cmd *cobra.Command) {
 	}
 	if cfg.Model != nil && !cmd.Flags().Changed("llm-model") {
 		summaryLLMModel = *cfg.Model
+	}
+	if cfg.Short != nil && !cmd.Flags().Changed("llm-short") {
+		summaryShort = *cfg.Short
 	}
 
 	if summaryAPIKey == "" {

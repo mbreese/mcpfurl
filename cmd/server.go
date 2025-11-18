@@ -19,6 +19,7 @@ var mcpCmd = &cobra.Command{
 		applyMCPHTTPConfig(cmd)
 		applyGoogleCustomConfig(cmd)
 		applyCacheConfig(cmd)
+		applySummaryConfig(cmd)
 
 		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
 		if err != nil {
@@ -46,6 +47,7 @@ var mcpCmd = &cobra.Command{
 			SummarizeBaseURL:   summaryBaseURL,
 			SummarizeApiKey:    summaryAPIKey,
 			SummarizeModel:     summaryLLMModel,
+			SummarizeShort:     summaryShort,
 		}, mcpserver.MCPServerOptions{
 			FetchDesc:   defaultFetchDesc,
 			ImageDesc:   defaultImageDesc,
@@ -63,6 +65,7 @@ var mcpHttpCmd = &cobra.Command{
 		applyMCPHTTPConfig(cmd)
 		applyGoogleCustomConfig(cmd)
 		applyCacheConfig(cmd)
+		applySummaryConfig(cmd)
 
 		var searchCacheExpires time.Duration
 		if searchCachePath != "" && searchCacheExpiresStr != "" {
@@ -94,6 +97,7 @@ var mcpHttpCmd = &cobra.Command{
 			SummarizeBaseURL:   summaryBaseURL,
 			SummarizeApiKey:    summaryAPIKey,
 			SummarizeModel:     summaryLLMModel,
+			SummarizeShort:     summaryShort,
 		}, mcpserver.MCPServerOptions{
 			Addr:        mcpAddr,
 			Port:        mcpPort,

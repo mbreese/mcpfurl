@@ -20,6 +20,7 @@ var summarizeCmd = &cobra.Command{
 		applyMCPHTTPConfig(cmd)
 		applyGoogleCustomConfig(cmd)
 		applyCacheConfig(cmd)
+		applySummaryConfig(cmd)
 
 		if len(args) < 1 {
 			fmt.Fprintln(os.Stderr, "You must specify a URL")
@@ -48,6 +49,7 @@ var summarizeCmd = &cobra.Command{
 			SummarizeBaseURL: summaryBaseURL,
 			SummarizeApiKey:  summaryAPIKey,
 			SummarizeModel:   summaryLLMModel,
+			SummarizeShort:   summaryShort,
 		})
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
@@ -59,7 +61,7 @@ var summarizeCmd = &cobra.Command{
 		defer fetcher.Stop()
 
 		ctx := context.Background()
-		summary, err := fetcher.SummarizeURL(ctx, url, selector)
+		summary, err := fetcher.SummarizeURL(ctx, url, selector, false)
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
 		}
@@ -72,6 +74,7 @@ var summarizeCmd = &cobra.Command{
 var summaryLLMModel string
 var summaryAPIKey string
 var summaryBaseURL string
+var summaryShort bool
 
 func init() {
 	summarizeCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
@@ -80,6 +83,7 @@ func init() {
 	summarizeCmd.Flags().StringVar(&summaryAPIKey, "llm-api-key", "", "LLM API Key (will also read LLM_API_KEY env var)")
 	summarizeCmd.Flags().StringVar(&summaryBaseURL, "llm-base-url", "", "LLM Base URL")
 	summarizeCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
+	summarizeCmd.Flags().BoolVar(&summaryShort, "llm-short", false, "Return a short summary (default: auto length)")
 	summarizeCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	fetchCmd.Flags().MarkHidden("md")
 

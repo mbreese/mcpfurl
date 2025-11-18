@@ -40,6 +40,7 @@ type WebFetcherOptions struct {
 	SummarizeBaseURL    string
 	SummarizeApiKey     string
 	SummarizeModel      string
+	SummarizeShort      bool
 	// WebDriverLogging    string
 }
 

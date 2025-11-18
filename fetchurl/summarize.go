@@ -25,7 +25,7 @@ title: %s
 `, s.TargetURL, s.CurrentURL, s.Title, s.Summary)
 }
 
-func (w *WebFetcher) SummarizeURL(ctx context.Context, targetURL string, selector string) (*WebPageSummary, error) {
+func (w *WebFetcher) SummarizeURL(ctx context.Context, targetURL string, selector string, short bool) (*WebPageSummary, error) {
 	webpage, err := w.FetchURL(ctx, targetURL, selector)
 	if err != nil {
 		return nil, err
@@ -41,10 +41,18 @@ func (w *WebFetcher) SummarizeURL(ctx context.Context, targetURL string, selecto
 		option.WithAPIKey(w.opts.SummarizeApiKey),
 		option.WithBaseURL(w.opts.SummarizeBaseURL),
 	)
-	w.opts.Logger.Debug("Sending to LLM")
+	w.opts.Logger.Debug(fmt.Sprintf("Sending to LLM: %s [%s]", w.opts.SummarizeBaseURL, w.opts.SummarizeModel))
+
+	var msg string
+	if w.opts.SummarizeShort || short {
+		msg = "Using only 1-3 sentences, summarize the document below:\n\n<DOCUMENT>\n" + md
+	} else {
+		msg = "Summarize the document below:\n\n<DOCUMENT>\n" + md
+	}
+
 	chatCompletion, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage("Summarize the document below:\n\n<DOCUMENT>\n" + md),
+			openai.UserMessage(msg),
 		},
 		Model: w.opts.SummarizeModel,
 	})

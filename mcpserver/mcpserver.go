@@ -20,6 +20,10 @@ import (
 type WebFetchParams struct {
 	URL string `json:"url" jsonschema:"The URL of the webpage to fetch"`
 }
+type WebSummaryParams struct {
+	URL   string `json:"url" jsonschema:"The URL of the webpage to summarize"`
+	Short bool   `json:"short" jsonschema:"Return a short summary"`
+}
 
 type WebSearchParams struct {
 	Query          string `json:"query" jsonschema:"The web search to perform"`
@@ -137,7 +141,7 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 	return nil, &WebSearchOutput{Query: args.Query, Results: results}, nil
 }
 
-func summarizePage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParams) (*mcp.CallToolResult, *WebSummaryOutput, error) {
+func summarizePage(ctx context.Context, req *mcp.CallToolRequest, args WebSummaryParams) (*mcp.CallToolResult, *WebSummaryOutput, error) {
 	if args.URL == "" {
 		return &mcp.CallToolResult{
 			IsError: true,
@@ -147,7 +151,7 @@ func summarizePage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchP
 		}, &WebSummaryOutput{Error: "Missing argument: \"url\""}, nil
 	}
 
-	webpage, err := fetcher.SummarizeURL(ctx, args.URL, "")
+	webpage, err := fetcher.SummarizeURL(ctx, args.URL, "", args.Short)
 	if err != nil {
 		return &mcp.CallToolResult{
 			IsError: true,
