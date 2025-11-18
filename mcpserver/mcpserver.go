@@ -42,7 +42,7 @@ type WebSummaryOutput struct {
 
 type WebSearchOutput struct {
 	Query           string                  `json:"query" jsonschema:"The query for this search"`
-	ResultsMarkdown string                  `json:"markdown,omitempty" jsonschema:"The search results in Markdown format"`
+	ResultsMarkdown string                  `json:"markdown_results,omitempty" jsonschema:"The search results in Markdown format"`
 	Results         []fetchurl.SearchResult `json:"results,omitempty" jsonschema:"The search results in JSON format"`
 	Error           string                  `json:"error,omitempty" jsonschema:"Any error messages"`
 }

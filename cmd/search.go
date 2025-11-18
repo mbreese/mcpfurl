@@ -68,7 +68,7 @@ var searchCmd = &cobra.Command{
 		if convertToMarkdown {
 			ret := "# Search results\n\n"
 			for _, result := range results {
-				ret += fmt.Sprintf("* [%s](%s) - %s\n", result.Title, result.Link, result.Snippet)
+				ret += fmt.Sprintf("Title: %s\nLink: %s\nSnippet: %s\n\n---\n\n", result.Title, result.Link, result.Snippet)
 			}
 			fmt.Println(ret)
 		} else {
