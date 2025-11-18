@@ -20,6 +20,10 @@ import (
 type WebFetchParams struct {
 	URL string `json:"url" jsonschema:"The URL of the webpage to fetch"`
 }
+type WebSummaryParams struct {
+	URL   string `json:"url" jsonschema:"The URL of the webpage to summarize"`
+	Short bool   `json:"short" jsonschema:"Return a short summary"`
+}
 
 type WebSearchParams struct {
 	Query          string `json:"query" jsonschema:"The web search to perform"`
@@ -28,6 +32,11 @@ type WebSearchParams struct {
 
 type WebFetchOutput struct {
 	Content string `json:"content" jsonschema:"The content of the webpage in Markdown format"`
+	Error   string `json:"error,omitempty" jsonschema:"Any error messages"`
+}
+
+type WebSummaryOutput struct {
+	Summary string `json:"content" jsonschema:"The summary of a webpage in Markdown format"`
 	Error   string `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
@@ -50,12 +59,17 @@ type ImageFetchOutput struct {
 }
 
 type MCPServerOptions struct {
-	Addr       string
-	Port       int
-	MasterKey  string
-	FetchDesc  string
-	ImageDesc  string
-	SearchDesc string
+	Addr           string
+	Port           int
+	MasterKey      string
+	FetchDesc      string
+	ImageDesc      string
+	SearchDesc     string
+	SummaryDesc    string
+	DisableSearch  bool
+	DisableFetch   bool
+	DisableImage   bool
+	DisableSummary bool
 }
 
 var fetcher *fetchurl.WebFetcher
@@ -127,6 +141,30 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 	return nil, &WebSearchOutput{Query: args.Query, Results: results}, nil
 }
 
+func summarizePage(ctx context.Context, req *mcp.CallToolRequest, args WebSummaryParams) (*mcp.CallToolResult, *WebSummaryOutput, error) {
+	if args.URL == "" {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "Missing argument: \"url\""},
+			},
+		}, &WebSummaryOutput{Error: "Missing argument: \"url\""}, nil
+	}
+
+	webpage, err := fetcher.SummarizeURL(ctx, args.URL, "", args.Short)
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: fmt.Sprintf("Error fetching URL: %s => %v", args.URL, err)},
+			},
+		}, &WebSummaryOutput{Error: fmt.Sprintf("Error fetching URL: %s => %v", args.URL, err)}, nil
+	}
+
+	return nil, &WebSummaryOutput{Summary: webpage.ToYaml()}, nil
+
+}
+
 func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchParams) (*mcp.CallToolResult, *ImageFetchOutput, error) {
 	if args.URL == "" {
 		return &mcp.CallToolResult{
@@ -169,23 +207,40 @@ func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mc
 	if mcpOpts.ImageDesc == "" {
 		mcpOpts.ImageDesc = "Download an image or binary file and return it as base64 data"
 	}
+	if mcpOpts.SummaryDesc == "" {
+		mcpOpts.SummaryDesc = "Summarize a webpage and return the summary in Markdown format"
+	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "mcpfurl", Version: "v0.0.1"}, nil)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "web_fetch",
-		Description: mcpOpts.FetchDesc,
-	}, fetchPage)
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "image_fetch",
-		Description: mcpOpts.ImageDesc,
-	}, fetchImage)
-
-	if fetcher != nil && fetcher.HasSearch() {
-		// only expose the web_search tool if we have a valid search
+	if !mcpOpts.DisableFetch {
 		mcp.AddTool(server, &mcp.Tool{
-			Name:        "web_search",
-			Description: mcpOpts.SearchDesc,
-		}, webSearch)
+			Name:        "web_fetch",
+			Description: mcpOpts.FetchDesc,
+		}, fetchPage)
+	}
+
+	if !mcpOpts.DisableImage {
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "image_fetch",
+			Description: mcpOpts.ImageDesc,
+		}, fetchImage)
+	}
+
+	if !mcpOpts.DisableSummary {
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "web_summary",
+			Description: mcpOpts.SummaryDesc,
+		}, summarizePage)
+	}
+
+	if !mcpOpts.DisableSearch {
+		if fetcher != nil && fetcher.HasSearch() {
+			// only expose the web_search tool if we have a valid search
+			mcp.AddTool(server, &mcp.Tool{
+				Name:        "web_search",
+				Description: mcpOpts.SearchDesc,
+			}, webSearch)
+		}
 	}
 
 	return server

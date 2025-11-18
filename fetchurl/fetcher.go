@@ -37,14 +37,18 @@ type WebFetcherOptions struct {
 	SearchCacheExpires  time.Duration
 	AllowedURLGlobs     []string
 	DenyURLGlobs        []string
+	SummarizeBaseURL    string
+	SummarizeApiKey     string
+	SummarizeModel      string
+	SummarizeShort      bool
 	// WebDriverLogging    string
 }
 
 type FetchedWebPage struct {
-	TargetURL  string
-	CurrentURL string
-	Title      string
-	Src        string
+	TargetURL  string `json:"target_url"`
+	CurrentURL string `json:"current_url"`
+	Title      string `json:"title"`
+	Src        string `json:"html"`
 }
 
 type FetchedWebPageResult struct {
