@@ -27,11 +27,11 @@ type WebSummaryParams struct {
 
 type WebSearchParams struct {
 	Query          string `json:"query" jsonschema:"The web search to perform"`
-	OutputMarkdown bool   `json:"markdown_output,omitempty" jsonschema:"The output should be in Markdown format"`
+	OutputMarkdown bool   `json:"markdown_output,omitempty" jsonschema:"Output the results in Markdown format"`
 }
 
 type WebFetchOutput struct {
-	Content string `json:"content" jsonschema:"The content of the webpage in Markdown format"`
+	Content string `json:"content" jsonschema:"The content of the webpage converted to Markdown format"`
 	Error   string `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
@@ -48,7 +48,7 @@ type WebSearchOutput struct {
 }
 
 type ImageFetchParams struct {
-	URL string `json:"url" jsonschema:"The URL of the image to fetch"`
+	URL string `json:"url" jsonschema:"The URL of the image/PDF to fetch"`
 }
 
 type ImageFetchOutput struct {
