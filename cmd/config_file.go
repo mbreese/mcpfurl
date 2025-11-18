@@ -14,20 +14,26 @@ type appConfig struct {
 	HTTPCfg         *MCPHTTPServerConfig `toml:"http"`
 	GoogleCustomCfg *GoogleCustomConfig  `toml:"google_custom"`
 	CacheCfg        *CacheConfig         `toml:"cache"`
+	SummaryLLMCfg   *SummaryLLMConfig    `toml:"summarize"`
 }
 
 type MCPFurlConfig struct {
 	WebDriverPort *int    `toml:"web_driver_port"`
 	WebDriverPath *string `toml:"web_driver_path"`
 	// WebDriverLog  *string `toml:"web_driver_log"`
-	UsePandoc    *bool    `toml:"use_pandoc"`
-	SearchEngine *string  `toml:"search_engine"`
-	Verbose      *bool    `toml:"verbose"`
-	FetchDesc    *string  `toml:"fetch_tool_desc"`
-	SearchDesc   *string  `toml:"search_tool_desc"`
-	ImageDesc    *string  `toml:"image_tool_desc"`
-	Allow        []string `toml:"allow"`
-	Deny         []string `toml:"deny"`
+	UsePandoc      *bool    `toml:"use_pandoc"`
+	SearchEngine   *string  `toml:"search_engine"`
+	Verbose        *bool    `toml:"verbose"`
+	FetchDesc      *string  `toml:"fetch_tool_desc"`
+	SearchDesc     *string  `toml:"search_tool_desc"`
+	ImageDesc      *string  `toml:"image_tool_desc"`
+	SummaryDesc    *string  `toml:"summary_tool_desc"`
+	DisableFetch   *bool    `toml:"disable_fetch"`
+	DisableImage   *bool    `toml:"disable_image"`
+	DisableSearch  *bool    `toml:"disable_search"`
+	DisableSummary *bool    `toml:"disable_summary"`
+	Allow          []string `toml:"allow"`
+	Deny           []string `toml:"deny"`
 }
 
 type MCPHTTPServerConfig struct {
@@ -35,6 +41,12 @@ type MCPHTTPServerConfig struct {
 	Addr      *string `toml:"addr"`
 	Port      *int    `toml:"port"`
 	MasterKey *string `toml:"master_key"`
+}
+
+type SummaryLLMConfig struct {
+	BaseURL *string `toml:"base_url"`
+	ApiKey  *string `toml:"api_key"`
+	Model   *string `toml:"model"`
 }
 
 type GoogleCustomConfig struct {
@@ -90,6 +102,7 @@ func loadConfigFile() {
 func applyMCPConfig(cmd *cobra.Command) {
 	applyCacheConfig(cmd)
 	applyGoogleCustomConfig(cmd)
+	applySummaryConfig(cmd)
 	if userConfig == nil || userConfig.MCPFurlCfg == nil {
 		return
 	}
@@ -99,6 +112,7 @@ func applyMCPConfig(cmd *cobra.Command) {
 func applyMCPHTTPConfig(cmd *cobra.Command) {
 	applyCacheConfig(cmd)
 	applyGoogleCustomConfig(cmd)
+	applySummaryConfig(cmd)
 	if userConfig == nil {
 		applyHTTPMasterKeyEnv(cmd)
 		return
@@ -144,6 +158,18 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPFurlConfig) {
 	if cfg.UsePandoc != nil && !cmd.Flags().Changed("pandoc") {
 		usePandoc = *cfg.UsePandoc
 	}
+	if cfg.DisableFetch != nil && !cmd.Flags().Changed("disable-fetch") {
+		disableFetch = *cfg.DisableFetch
+	}
+	if cfg.DisableImage != nil && !cmd.Flags().Changed("disable-image") {
+		disableImage = *cfg.DisableImage
+	}
+	if cfg.DisableSearch != nil && !cmd.Flags().Changed("disable-search") {
+		disableSearch = *cfg.DisableSearch
+	}
+	if cfg.DisableSummary != nil && !cmd.Flags().Changed("disable-summary") {
+		disableSummary = *cfg.DisableSummary
+	}
 	if cfg.SearchEngine != nil && !cmd.Flags().Changed("search-engine") {
 		searchEngine = *cfg.SearchEngine
 	}
@@ -158,6 +184,9 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPFurlConfig) {
 	}
 	if cfg.SearchDesc != nil {
 		defaultSearchDesc = *cfg.SearchDesc
+	}
+	if cfg.SummaryDesc != nil {
+		defaultSummaryDesc = *cfg.SummaryDesc
 	}
 	if len(cfg.Allow) > 0 && !cmd.Flags().Changed("allow") {
 		httpAllowGlobs = normalizePatterns(cfg.Allow)
@@ -179,6 +208,31 @@ func applyGoogleCustomConfig(cmd *cobra.Command) {
 	if cfg.Key != nil && !cmd.Flags().Changed("google-key") {
 		googleKey = *cfg.Key
 	}
+}
+
+func applySummaryConfig(cmd *cobra.Command) {
+	if userConfig == nil || userConfig.GoogleCustomCfg == nil {
+		return
+	}
+	cfg := userConfig.SummaryLLMCfg
+
+	if cfg.ApiKey != nil && !cmd.Flags().Changed("llm-api-key") {
+		summaryAPIKey = *cfg.ApiKey
+
+	}
+	if cfg.BaseURL != nil && !cmd.Flags().Changed("llm-baseurl") {
+		summaryBaseURL = *cfg.BaseURL
+	}
+	if cfg.Model != nil && !cmd.Flags().Changed("llm-model") {
+		summaryLLMModel = *cfg.Model
+	}
+
+	if summaryAPIKey == "" {
+		if env := os.Getenv("LLM_API_KEY"); env != "" {
+			summaryAPIKey = env
+		}
+	}
+
 }
 
 func applyCacheConfig(cmd *cobra.Command) {
