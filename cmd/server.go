@@ -49,10 +49,14 @@ var mcpCmd = &cobra.Command{
 			SummarizeModel:     summaryLLMModel,
 			SummarizeShort:     summaryShort,
 		}, mcpserver.MCPServerOptions{
-			FetchDesc:   defaultFetchDesc,
-			ImageDesc:   defaultImageDesc,
-			SearchDesc:  defaultSearchDesc,
-			SummaryDesc: defaultSummaryDesc,
+			FetchDesc:      defaultFetchDesc,
+			ImageDesc:      defaultImageDesc,
+			SearchDesc:     defaultSearchDesc,
+			SummaryDesc:    defaultSummaryDesc,
+			DisableSearch:  disableSearch,
+			DisableFetch:   disableFetch,
+			DisableImage:   disableImage,
+			DisableSummary: disableSummary,
 		})
 	},
 }
@@ -99,13 +103,17 @@ var mcpHttpCmd = &cobra.Command{
 			SummarizeModel:     summaryLLMModel,
 			SummarizeShort:     summaryShort,
 		}, mcpserver.MCPServerOptions{
-			Addr:        mcpAddr,
-			Port:        mcpPort,
-			MasterKey:   masterKey,
-			FetchDesc:   defaultFetchDesc,
-			ImageDesc:   defaultImageDesc,
-			SearchDesc:  defaultSearchDesc,
-			SummaryDesc: defaultSummaryDesc,
+			Addr:           mcpAddr,
+			Port:           mcpPort,
+			MasterKey:      masterKey,
+			FetchDesc:      defaultFetchDesc,
+			ImageDesc:      defaultImageDesc,
+			SearchDesc:     defaultSearchDesc,
+			SummaryDesc:    defaultSummaryDesc,
+			DisableSearch:  disableSearch,
+			DisableFetch:   disableFetch,
+			DisableImage:   disableImage,
+			DisableSummary: disableSummary,
 		})
 	},
 }
