@@ -41,8 +41,8 @@ var summarizeCmd = &cobra.Command{
 		var fetcher *fetchurl.WebFetcher
 		var err error
 		fetcher, err = fetchurl.NewWebFetcher(fetchurl.WebFetcherOptions{
-			WebDriverPort:    webDriverPort,
-			ChromeDriverPath: webDriverPath,
+			// WebDriverPort:    webDriverPort,
+			// ChromeDriverPath: webDriverPath,
 			Logger:           logger,
 			AllowedURLGlobs:  httpAllowGlobs,
 			DenyURLGlobs:     httpDenyGlobs,
@@ -78,12 +78,12 @@ var summaryBaseURL string
 var summaryShort bool
 
 func init() {
-	summarizeCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
+	// summarizeCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
 	// fetchCmd.Flags().StringVar(&webDriverLog, "wd-log", "", "Path to chromedriver log file")
 	summarizeCmd.Flags().StringVar(&summaryLLMModel, "llm-model", "", "LLM Model name")
 	summarizeCmd.Flags().StringVar(&summaryAPIKey, "llm-api-key", "", "LLM API Key (will also read LLM_API_KEY env var)")
 	summarizeCmd.Flags().StringVar(&summaryBaseURL, "llm-base-url", "", "LLM Base URL")
-	summarizeCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
+	// summarizeCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
 	summarizeCmd.Flags().BoolVar(&summaryShort, "llm-short", false, "Return a short summary (default: auto length)")
 	summarizeCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	fetchCmd.Flags().MarkHidden("md")

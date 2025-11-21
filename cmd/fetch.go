@@ -42,8 +42,8 @@ var fetchCmd = &cobra.Command{
 		var err error
 		fetcher, err = fetchurl.NewWebFetcher(fetchurl.WebFetcherOptions{
 			ConvertAbsoluteHref: useAbsHref,
-			WebDriverPort:       webDriverPort,
-			ChromeDriverPath:    webDriverPath,
+			// WebDriverPort:       webDriverPort,
+			// ChromeDriverPath:    webDriverPath,
 			// WebDriverLogging:    webDriverLog,
 			Logger:          logger,
 			UsePandoc:       usePandoc,
@@ -73,23 +73,35 @@ var fetchCmd = &cobra.Command{
 		// webpage := res.Page
 
 		ctx := context.Background()
-		webpage, err := fetcher.FetchURL(ctx, url, selector)
-		if err != nil {
-			log.Fatalf("ERROR: %v\n", err)
-		}
+		if outputPNG == "" {
+			webpage, err := fetcher.FetchURL(ctx, url, selector)
+			if err != nil {
+				log.Fatalf("ERROR: %v\n", err)
+			}
 
-		if webpage != nil {
-			if convertToMarkdown {
-				if md, err := fetcher.WebpageToMarkdownYaml(webpage); err == nil {
-					fmt.Println(md)
+			if webpage != nil {
+				if convertToMarkdown {
+					if md, err := fetcher.WebpageToMarkdownYaml(webpage); err == nil {
+						fmt.Println(md)
+					} else {
+						fmt.Println(err)
+					}
 				} else {
-					fmt.Println(err)
+					fmt.Println(webpage.Src)
 				}
 			} else {
-				fmt.Println(webpage.Src)
+				fmt.Fprintf(os.Stderr, "Unable to fetch web page: %s\n", url)
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "Unable to fetch web page: %s\n", url)
+			data, err := fetcher.FetchURLPNG(ctx, url, selector)
+			if err != nil {
+				log.Fatalf("ERROR: %v\n", err)
+			}
+
+			if err := os.WriteFile(outputPNG, data, 0644); err != nil {
+				log.Fatalf("ERROR: %v\n", err)
+			}
+
 		}
 	},
 }
@@ -99,19 +111,22 @@ var convertToMarkdown bool
 var convertToMarkdown2 bool
 var useAbsHref bool
 var verbose bool
-var webDriverPort int
-var webDriverPath string
+var outputPNG string
+
+// var webDriverPort int
+// var webDriverPath string
 
 // var webDriverLog string
 
 func init() {
-	fetchCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
+	// fetchCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
 	// fetchCmd.Flags().StringVar(&webDriverLog, "wd-log", "", "Path to chromedriver log file")
-	fetchCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
+	// fetchCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
 	fetchCmd.Flags().BoolVar(&useAbsHref, "abspath", false, "Use absolute paths for a-hrefs/img-src")
 	fetchCmd.Flags().BoolVar(&convertToMarkdown2, "md", false, "Alias for --markdown")
 	fetchCmd.Flags().BoolVarP(&convertToMarkdown, "markdown", "m", false, "Convert HTML to Markdown")
 	fetchCmd.Flags().BoolVar(&usePandoc, "pandoc", false, "Convert HTML to Markdown using pandoc")
+	fetchCmd.Flags().StringVar(&outputPNG, "png", "", "Output screenshot to PNG file")
 	fetchCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	fetchCmd.Flags().MarkHidden("md")
 

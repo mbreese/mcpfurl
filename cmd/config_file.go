@@ -19,8 +19,8 @@ type appConfig struct {
 }
 
 type MCPFurlConfig struct {
-	WebDriverPort *int    `toml:"web_driver_port"`
-	WebDriverPath *string `toml:"web_driver_path"`
+	// WebDriverPort *int    `toml:"web_driver_port"`
+	// WebDriverPath *string `toml:"web_driver_path"`
 	// WebDriverLog  *string `toml:"web_driver_log"`
 	UsePandoc      *bool    `toml:"use_pandoc"`
 	SearchEngine   *string  `toml:"search_engine"`
@@ -153,12 +153,12 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPFurlConfig) {
 		return
 	}
 
-	if cfg.WebDriverPort != nil && !cmd.Flags().Changed("wd-port") {
-		webDriverPort = *cfg.WebDriverPort
-	}
-	if cfg.WebDriverPath != nil && !cmd.Flags().Changed("wd-path") {
-		webDriverPath = *cfg.WebDriverPath
-	}
+	// if cfg.WebDriverPort != nil && !cmd.Flags().Changed("wd-port") {
+	// 	webDriverPort = *cfg.WebDriverPort
+	// }
+	// if cfg.WebDriverPath != nil && !cmd.Flags().Changed("wd-path") {
+	// 	webDriverPath = *cfg.WebDriverPath
+	// }
 	// if cfg.WebDriverLog != nil && !cmd.Flags().Changed("wd-log") {
 	// 	webDriverLog = *cfg.WebDriverLog
 	// }

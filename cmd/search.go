@@ -48,14 +48,14 @@ var searchCmd = &cobra.Command{
 		var fetcher *fetchurl.WebFetcher
 		fetcher, err = fetchurl.NewWebFetcher(fetchurl.WebFetcherOptions{
 			ConvertAbsoluteHref: useAbsHref,
-			WebDriverPort:       webDriverPort,
-			ChromeDriverPath:    webDriverPath,
-			Logger:              logger,
-			SearchEngine:        searchEngine,
-			GoogleSearchCx:      googleCx,
-			GoogleSearchKey:     googleKey,
-			SearchCachePath:     searchCachePath,
-			SearchCacheExpires:  searchCacheExpires,
+			// WebDriverPort:       webDriverPort,
+			// ChromeDriverPath:    webDriverPath,
+			Logger:             logger,
+			SearchEngine:       searchEngine,
+			GoogleSearchCx:     googleCx,
+			GoogleSearchKey:    googleKey,
+			SearchCachePath:    searchCachePath,
+			SearchCacheExpires: searchCacheExpires,
 		})
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
@@ -89,8 +89,8 @@ var searchCachePath string
 var searchCacheExpiresStr string
 
 func init() {
-	searchCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
-	searchCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
+	// searchCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
+	// searchCmd.Flags().StringVar(&webDriverPath, "wd-path", "/usr/bin/chromedriver", "Path to chromedriver")
 	searchCmd.Flags().StringVar(&googleCx, "google-cx", "", "cx value for Google Custom Search")
 	searchCmd.Flags().StringVar(&googleKey, "google-key", "", "API key for Google Custom Search")
 	searchCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")

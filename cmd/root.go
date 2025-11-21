@@ -25,12 +25,12 @@ var debugCmd = &cobra.Command{
 		} else {
 			if userConfig.MCPFurlCfg != nil {
 				fmt.Println("[mcp]")
-				if userConfig.MCPFurlCfg.WebDriverPort != nil {
-					fmt.Printf("  web_driver_port: %d\n", *userConfig.MCPFurlCfg.WebDriverPort)
-				}
-				if userConfig.MCPFurlCfg.WebDriverPath != nil {
-					fmt.Printf("  web_driver_path: %s\n", *userConfig.MCPFurlCfg.WebDriverPath)
-				}
+				// if userConfig.MCPFurlCfg.WebDriverPort != nil {
+				// 	fmt.Printf("  web_driver_port: %d\n", *userConfig.MCPFurlCfg.WebDriverPort)
+				// }
+				// if userConfig.MCPFurlCfg.WebDriverPath != nil {
+				// 	fmt.Printf("  web_driver_path: %s\n", *userConfig.MCPFurlCfg.WebDriverPath)
+				// }
 				// if userConfig.MCP.WebDriverLog != nil {
 				// 	fmt.Printf("  web_driver_log : %s\n", *userConfig.MCP.WebDriverLog)
 				// }
@@ -88,8 +88,8 @@ var debugCmd = &cobra.Command{
 		applyCacheConfig(cmd)
 
 		fmt.Println("\n-- Effective Flags --")
-		fmt.Printf("web_driver_port: %d\n", webDriverPort)
-		fmt.Printf("web_driver_path: %s\n", webDriverPath)
+		// fmt.Printf("web_driver_port: %d\n", webDriverPort)
+		// fmt.Printf("web_driver_path: %s\n", webDriverPath)
 		// fmt.Printf("web_driver_log : %s\n", webDriverLog)
 		fmt.Printf("use_pandoc     : %t\n", usePandoc)
 		fmt.Printf("verbose        : %t\n", verbose)
