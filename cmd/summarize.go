@@ -50,6 +50,7 @@ var summarizeCmd = &cobra.Command{
 			SummarizeApiKey:  summaryAPIKey,
 			SummarizeModel:   summaryLLMModel,
 			SummarizeShort:   summaryShort,
+			UrlSelectors:     selectors,
 		})
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)

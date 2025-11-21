@@ -33,3 +33,7 @@ expires = "14d"
 [google_custom]
 cx = ""
 key = ""
+
+[[selectors]]
+url="https://*.wikipedia.org/*"
+selector="#mw-content-text"

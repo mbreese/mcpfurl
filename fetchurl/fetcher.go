@@ -14,12 +14,12 @@ import (
 
 type WebFetcher struct {
 	service *selenium.Service
-	wd      selenium.WebDriver
-	opts    WebFetcherOptions
-	done    bool
-	lock    sync.Mutex
-	search  SearchEngine
-	cache   *SearchCache
+	// wd      *selenium.WebDriver
+	opts   WebFetcherOptions
+	done   bool
+	lock   sync.Mutex
+	search SearchEngine
+	cache  *SearchCache
 }
 
 type WebFetcherOptions struct {
@@ -37,11 +37,17 @@ type WebFetcherOptions struct {
 	SearchCacheExpires  time.Duration
 	AllowedURLGlobs     []string
 	DenyURLGlobs        []string
+	UrlSelectors        []UrlSelector
 	SummarizeBaseURL    string
 	SummarizeApiKey     string
 	SummarizeModel      string
 	SummarizeShort      bool
 	// WebDriverLogging    string
+}
+
+type UrlSelector struct {
+	Url      string
+	Selector string
 }
 
 type FetchedWebPage struct {
@@ -64,7 +70,7 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		opts.ChromeDriverPath = "/usr/bin/chromedriver"
 	}
 	if opts.PageLoadTimeoutSecs == 0 {
-		opts.PageLoadTimeoutSecs = 10
+		opts.PageLoadTimeoutSecs = 30
 	}
 
 	if opts.Logger == nil {
@@ -94,13 +100,6 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		opts.Logger.Info("No valid search_engine configured.")
 	}
 
-	if len(opts.AllowedURLGlobs) > 0 {
-		opts.AllowedURLGlobs = append([]string(nil), opts.AllowedURLGlobs...)
-	}
-	if len(opts.DenyURLGlobs) > 0 {
-		opts.DenyURLGlobs = append([]string(nil), opts.DenyURLGlobs...)
-	}
-
 	return &WebFetcher{
 		opts:   opts,
 		search: search,
@@ -113,16 +112,12 @@ func (w *WebFetcher) HasSearch() bool {
 }
 
 func (w *WebFetcher) Stop() {
-	if w.wd != nil {
-		w.wd.Quit()
-	}
 	if w.service != nil {
 		w.service.Stop()
 	}
 	if w.cache != nil {
 		w.cache.Close()
 	}
-
 	w.done = true
 	w.opts.Logger.Info("Stopped fetcher service / webdriver")
 }
@@ -131,8 +126,10 @@ func (w *WebFetcher) Start() error {
 	if w.done {
 		return fmt.Errorf("service already stopped")
 	}
-	w.lock.Lock()
+	return nil
+}
 
+func (w *WebFetcher) startSelenium() (selenium.WebDriver, error) {
 	// Set Chrome options (headless)
 	caps := selenium.Capabilities{
 		"browserName": "chrome",
@@ -144,13 +141,6 @@ func (w *WebFetcher) Start() error {
 		"--disable-gpu",
 		"--no-sandbox",
 	}
-
-	// if w.opts.WebDriverLogging != "" {
-	// 	args = append(args, fmt.Sprintf("--log-path=%s", w.opts.WebDriverLogging))
-	// 	args = append(args, "--log-level=DEBUG")
-	// }
-
-	w.opts.Logger.Debug(fmt.Sprintf("%v", args))
 
 	caps.AddChrome(chrome.Capabilities{
 		Args: args,
@@ -166,14 +156,15 @@ func (w *WebFetcher) Start() error {
 		// If we are here, we need to start the service ourselves...
 		service, err := selenium.NewChromeDriverService(w.opts.ChromeDriverPath, w.opts.WebDriverPort)
 		if err != nil {
-			w.lock.Unlock()
-			return fmt.Errorf("error starting ChromeDriver server: %v", err)
+			return nil, fmt.Errorf("error starting ChromeDriver server: %v", err)
 		}
 		w.service = service
 		wd, err = selenium.NewRemote(caps, fmt.Sprintf("http://localhost:%d/wd/hub", w.opts.WebDriverPort))
 		if err != nil {
-			w.lock.Unlock()
-			return fmt.Errorf("failed to open session: %v", err)
+			if wd != nil {
+				wd.Quit()
+			}
+			return nil, fmt.Errorf("failed to open session: %v", err)
 		}
 		w.opts.Logger.Debug("Starting selenium remote created")
 	} else {
@@ -182,10 +173,7 @@ func (w *WebFetcher) Start() error {
 	}
 
 	wd.SetPageLoadTimeout(time.Duration(w.opts.PageLoadTimeoutSecs) * time.Second)
-	w.wd = wd
-	w.lock.Unlock()
-
-	return nil
+	return wd, nil
 }
 
 func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector string) (*FetchedWebPage, error) {
@@ -197,6 +185,16 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 		return nil, err
 	}
 
+	// see if we have a pre-configured selector for this URL
+	if selector == "" {
+		for _, sel := range w.opts.UrlSelectors {
+			if match, _ := matchGlobList(targetURL, []string{sel.Url}); match {
+				selector = sel.Selector
+				break
+			}
+		}
+	}
+
 	// hold onto the lock for this instance. If we need to make
 	// more than one request at a time, it will require more than
 	// one Webdriver session (and port) and thus a WebFetcher.
@@ -205,9 +203,27 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
+	wd, err := w.startSelenium()
+	if err != nil {
+		return nil, err
+	}
+	defer wd.Quit()
+
 	type tmpResult struct {
 		webPage   *FetchedWebPage
 		resultErr error
+	}
+
+	attempt := 1
+	for status, err := wd.Status(); err != nil; {
+		if status.Ready {
+			break
+		} else if attempt < 3 {
+			time.Sleep(1 * time.Second)
+			attempt++
+		} else {
+			return nil, fmt.Errorf("timeout waiting for chrome to be ready")
+		}
 	}
 
 	c1 := make(chan tmpResult)
@@ -227,7 +243,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 				return
 			}
 			// Navigate to a URL
-			if err := w.wd.Get(targetURL); err != nil {
+			if err := wd.Get(targetURL); err != nil {
 				fmt.Printf("Error: %v\n\n", err)
 				c1 <- tmpResult{nil, fmt.Errorf("failed to load page: %v", err)}
 				return
@@ -235,7 +251,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 
 			// Wait for JS to execute or page to load
 			w.opts.Logger.Debug("Waiting for page to load")
-			err := w.wd.WaitWithTimeout(func(driver selenium.WebDriver) (bool, error) {
+			err := wd.WaitWithTimeout(func(driver selenium.WebDriver) (bool, error) {
 				result, err := driver.ExecuteScript("return document.readyState;", nil)
 				if err != nil {
 					return false, err
@@ -254,7 +270,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 			// if we want to convert Hrefs to absolute paths, run this script
 			if w.opts.ConvertAbsoluteHref {
 				w.opts.Logger.Debug("Converting a-href/img-src to absolute")
-				_, err := w.wd.ExecuteScript(`
+				_, err := wd.ExecuteScript(`
 		const links = document.body.querySelectorAll('a');
 		const images = document.body.querySelectorAll('img');
 		links.forEach(link => {
@@ -273,7 +289,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 			}
 			// fmt.Printf("Page title (via JS): %v\n", result)
 
-			title, err := w.wd.Title()
+			title, err := wd.Title()
 			if err != nil {
 				c1 <- tmpResult{nil, fmt.Errorf("failed to get title: %v", err)}
 				return
@@ -282,19 +298,19 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 			// Retrieve body text
 			var body selenium.WebElement
 			if selector == "" || strings.ToLower(selector) == "body" {
-				body, err = w.wd.FindElement(selenium.ByTagName, "body")
+				body, err = wd.FindElement(selenium.ByTagName, "body")
 				if err != nil {
 					c1 <- tmpResult{nil, fmt.Errorf("failed to find body: %v", err)}
 					return
 				}
 			} else if selector[0] == '#' {
-				body, err = w.wd.FindElement(selenium.ByID, selector[1:])
+				body, err = wd.FindElement(selenium.ByID, selector[1:])
 				if err != nil {
 					c1 <- tmpResult{nil, fmt.Errorf("failed to find %s: %v", selector, err)}
 					return
 				}
 			} else if selector[0] == '.' {
-				elements, err := w.wd.FindElements(selenium.ByClassName, selector[1:])
+				elements, err := wd.FindElements(selenium.ByClassName, selector[1:])
 				if err != nil || len(elements) == 0 {
 					c1 <- tmpResult{nil, fmt.Errorf("failed to find %s: %v", selector, err)}
 					return
@@ -302,13 +318,13 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 				body = elements[0]
 			}
 
-			htmlSrc, err := body.GetAttribute("innerHTML")
+			htmlSrc, err := body.GetAttribute("outerHTML")
 			if err != nil {
 				c1 <- tmpResult{nil, fmt.Errorf("failed to get body html: %v", err)}
 				return
 			}
 
-			currentURL, err := w.wd.CurrentURL()
+			currentURL, err := wd.CurrentURL()
 			if err != nil {
 				c1 <- tmpResult{nil, fmt.Errorf("failed to get currentURL: %v", err)}
 				return

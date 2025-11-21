@@ -48,6 +48,7 @@ var mcpCmd = &cobra.Command{
 			SummarizeApiKey:    summaryAPIKey,
 			SummarizeModel:     summaryLLMModel,
 			SummarizeShort:     summaryShort,
+			UrlSelectors:       selectors,
 		}, mcpserver.MCPServerOptions{
 			FetchDesc:      defaultFetchDesc,
 			ImageDesc:      defaultImageDesc,
@@ -102,6 +103,7 @@ var mcpHttpCmd = &cobra.Command{
 			SummarizeApiKey:    summaryAPIKey,
 			SummarizeModel:     summaryLLMModel,
 			SummarizeShort:     summaryShort,
+			UrlSelectors:       selectors,
 		}, mcpserver.MCPServerOptions{
 			Addr:           mcpAddr,
 			Port:           mcpPort,
@@ -133,6 +135,8 @@ var disableFetch bool
 var disableImage bool
 var disableSearch bool
 var disableSummary bool
+
+var selectors []fetchurl.UrlSelector
 
 func init() {
 	mcpHttpCmd.Flags().IntVarP(&mcpPort, "port", "p", 8080, "Start the MCP server on this port")

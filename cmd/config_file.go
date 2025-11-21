@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mbreese/mcpfurl/fetchurl"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )
@@ -34,10 +35,16 @@ type MCPFurlConfig struct {
 	DisableSummary *bool    `toml:"disable_summary"`
 	Allow          []string `toml:"allow"`
 	Deny           []string `toml:"deny"`
+
+	// Note: these are only configurable through config.toml, no cmdline arguments
+	SelectorCfg []UrlSelectorConfig `toml:"selectors"`
 }
 
+type UrlSelectorConfig struct {
+	Url      *string `toml:"url"`
+	Selector *string `toml:"selector"`
+}
 type MCPHTTPServerConfig struct {
-	MCPFurlConfig
 	Addr      *string `toml:"addr"`
 	Port      *int    `toml:"port"`
 	MasterKey *string `toml:"master_key"`
@@ -120,7 +127,6 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 	}
 
 	if cfg := userConfig.HTTPCfg; cfg != nil {
-		applyCommonConfig(cmd, &cfg.MCPFurlConfig)
 		if cfg.Addr != nil && !cmd.Flags().Changed("addr") {
 			mcpAddr = *cfg.Addr
 		}
@@ -195,6 +201,15 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPFurlConfig) {
 	if len(cfg.Deny) > 0 && !cmd.Flags().Changed("disallow") {
 		httpDenyGlobs = normalizePatterns(cfg.Deny)
 	}
+
+	if len(cfg.SelectorCfg) > 0 {
+		selectors = []fetchurl.UrlSelector{}
+		for _, s := range cfg.SelectorCfg {
+			if s.Url != nil && s.Selector != nil {
+				selectors = append(selectors, fetchurl.UrlSelector{Url: *s.Url, Selector: *s.Selector})
+			}
+		}
+	}
 }
 
 func applyGoogleCustomConfig(cmd *cobra.Command) {
@@ -216,27 +231,27 @@ func applySummaryConfig(cmd *cobra.Command) {
 		return
 	}
 	cfg := userConfig.SummaryLLMCfg
+	if cfg != nil {
+		if cfg.ApiKey != nil && !cmd.Flags().Changed("llm-api-key") {
+			summaryAPIKey = *cfg.ApiKey
 
-	if cfg.ApiKey != nil && !cmd.Flags().Changed("llm-api-key") {
-		summaryAPIKey = *cfg.ApiKey
+		}
+		if cfg.BaseURL != nil && !cmd.Flags().Changed("llm-baseurl") {
+			summaryBaseURL = *cfg.BaseURL
+		}
+		if cfg.Model != nil && !cmd.Flags().Changed("llm-model") {
+			summaryLLMModel = *cfg.Model
+		}
+		if cfg.Short != nil && !cmd.Flags().Changed("llm-short") {
+			summaryShort = *cfg.Short
+		}
 
-	}
-	if cfg.BaseURL != nil && !cmd.Flags().Changed("llm-baseurl") {
-		summaryBaseURL = *cfg.BaseURL
-	}
-	if cfg.Model != nil && !cmd.Flags().Changed("llm-model") {
-		summaryLLMModel = *cfg.Model
-	}
-	if cfg.Short != nil && !cmd.Flags().Changed("llm-short") {
-		summaryShort = *cfg.Short
-	}
-
-	if summaryAPIKey == "" {
-		if env := os.Getenv("LLM_API_KEY"); env != "" {
-			summaryAPIKey = env
+		if summaryAPIKey == "" {
+			if env := os.Getenv("LLM_API_KEY"); env != "" {
+				summaryAPIKey = env
+			}
 		}
 	}
-
 }
 
 func applyCacheConfig(cmd *cobra.Command) {

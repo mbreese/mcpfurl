@@ -49,6 +49,7 @@ var fetchCmd = &cobra.Command{
 			UsePandoc:       usePandoc,
 			AllowedURLGlobs: httpAllowGlobs,
 			DenyURLGlobs:    httpDenyGlobs,
+			UrlSelectors:    selectors,
 		})
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)

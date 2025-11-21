@@ -15,24 +15,27 @@ func ensureURLAllowed(target string, allowList, denyList []string) (bool, error)
 		return false, fmt.Errorf("missing URL")
 	}
 
+	// check allow first
+	matched, err := matchGlobList(target, allowList)
+	if err != nil {
+		return false, err
+	}
+	if matched {
+		return true, nil
+	}
+
 	if matched, err := matchGlobList(target, denyList); err != nil {
 		return false, err
 	} else if matched {
 		return false, fmt.Errorf("URL %q is denied by policy", target)
 	}
 
+	// if there is no set allow list, then we assume it is "*"
 	if len(allowList) == 0 {
 		return true, nil
 	}
 
-	matched, err := matchGlobList(target, allowList)
-	if err != nil {
-		return false, err
-	}
-	if !matched {
-		return false, fmt.Errorf("URL %q is not in the allowed list", target)
-	}
-	return true, nil
+	return false, fmt.Errorf("URL %q is denied by default", target)
 }
 
 func matchGlobList(target string, patterns []string) (bool, error) {
