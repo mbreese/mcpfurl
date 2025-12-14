@@ -21,9 +21,9 @@ var mcpCmd = &cobra.Command{
 		applyCacheConfig(cmd)
 		applySummaryConfig(cmd)
 
-		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
+		cacheExpires, err := fetchurl.ConvertTTLToDuration(cacheExpiresStr)
 		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
+			log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
 		}
 
 		var logger *slog.Logger
@@ -34,21 +34,21 @@ var mcpCmd = &cobra.Command{
 			// WebDriverPort:    webDriverPort,
 			// ChromeDriverPath: webDriverPath,
 			// WebDriverLogging:   webDriverLog,
-			Logger:             logger,
-			MaxDownloadBytes:   fetchurl.DefaultMaxDownloadBytes,
-			UsePandoc:          usePandoc,
-			GoogleSearchCx:     googleCx,
-			GoogleSearchKey:    googleKey,
-			SearchEngine:       searchEngine,
-			SearchCachePath:    searchCachePath,
-			SearchCacheExpires: searchCacheExpires,
-			AllowedURLGlobs:    httpAllowGlobs,
-			DenyURLGlobs:       httpDenyGlobs,
-			SummarizeBaseURL:   summaryBaseURL,
-			SummarizeApiKey:    summaryAPIKey,
-			SummarizeModel:     summaryLLMModel,
-			SummarizeShort:     summaryShort,
-			UrlSelectors:       selectors,
+			Logger:           logger,
+			MaxDownloadBytes: fetchurl.DefaultMaxDownloadBytes,
+			UsePandoc:        usePandoc,
+			GoogleSearchCx:   googleCx,
+			GoogleSearchKey:  googleKey,
+			SearchEngine:     searchEngine,
+			CachePath:        cachePath,
+			CacheExpires:     cacheExpires,
+			AllowedURLGlobs:  httpAllowGlobs,
+			DenyURLGlobs:     httpDenyGlobs,
+			SummarizeBaseURL: summaryBaseURL,
+			SummarizeApiKey:  summaryAPIKey,
+			SummarizeModel:   summaryLLMModel,
+			SummarizeShort:   summaryShort,
+			UrlSelectors:     selectors,
 		}, mcpserver.MCPServerOptions{
 			FetchDesc:      defaultFetchDesc,
 			ImageDesc:      defaultImageDesc,
@@ -72,12 +72,12 @@ var mcpHttpCmd = &cobra.Command{
 		applyCacheConfig(cmd)
 		applySummaryConfig(cmd)
 
-		var searchCacheExpires time.Duration
-		if searchCachePath != "" && searchCacheExpiresStr != "" {
+		var cacheExpires time.Duration
+		if cachePath != "" && cacheExpiresStr != "" {
 			var err error
-			searchCacheExpires, err = fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
+			cacheExpires, err = fetchurl.ConvertTTLToDuration(cacheExpiresStr)
 			if err != nil {
-				log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
+				log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
 			}
 		}
 
@@ -89,21 +89,21 @@ var mcpHttpCmd = &cobra.Command{
 			// WebDriverPort:    webDriverPort,
 			// ChromeDriverPath: webDriverPath,
 			// WebDriverLogging:   webDriverLog,
-			Logger:             logger,
-			MaxDownloadBytes:   fetchurl.DefaultMaxDownloadBytes,
-			UsePandoc:          usePandoc,
-			GoogleSearchCx:     googleCx,
-			GoogleSearchKey:    googleKey,
-			SearchEngine:       searchEngine,
-			SearchCachePath:    searchCachePath,
-			SearchCacheExpires: searchCacheExpires,
-			AllowedURLGlobs:    httpAllowGlobs,
-			DenyURLGlobs:       httpDenyGlobs,
-			SummarizeBaseURL:   summaryBaseURL,
-			SummarizeApiKey:    summaryAPIKey,
-			SummarizeModel:     summaryLLMModel,
-			SummarizeShort:     summaryShort,
-			UrlSelectors:       selectors,
+			Logger:           logger,
+			MaxDownloadBytes: fetchurl.DefaultMaxDownloadBytes,
+			UsePandoc:        usePandoc,
+			GoogleSearchCx:   googleCx,
+			GoogleSearchKey:  googleKey,
+			SearchEngine:     searchEngine,
+			CachePath:        cachePath,
+			CacheExpires:     cacheExpires,
+			AllowedURLGlobs:  httpAllowGlobs,
+			DenyURLGlobs:     httpDenyGlobs,
+			SummarizeBaseURL: summaryBaseURL,
+			SummarizeApiKey:  summaryAPIKey,
+			SummarizeModel:   summaryLLMModel,
+			SummarizeShort:   summaryShort,
+			UrlSelectors:     selectors,
 		}, mcpserver.MCPServerOptions{
 			Addr:           mcpAddr,
 			Port:           mcpPort,
@@ -153,8 +153,8 @@ func init() {
 	mcpHttpCmd.Flags().StringVar(&googleCx, "google-cx", "", "cx value for Google Custom Search")
 	mcpHttpCmd.Flags().StringVar(&googleKey, "google-key", "", "API key for Google Custom Search")
 	mcpHttpCmd.Flags().StringVar(&searchEngine, "search-engine", "google_custom", "Search engine to use (e.g. google_custom)")
-	mcpHttpCmd.Flags().StringVar(&searchCachePath, "cache", "", "Path to the SQLite search cache database")
-	mcpHttpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
+	mcpHttpCmd.Flags().StringVar(&cachePath, "cache", "", "Path to the SQLite cache database")
+	mcpHttpCmd.Flags().StringVar(&cacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	mcpHttpCmd.Flags().StringVar(&masterKey, "master-key", "", "Require HTTP Authorization: Bearer <value> to access the MCP server")
 	mcpHttpCmd.Flags().StringSliceVar(&httpAllowGlobs, "allow", nil, "Glob(s) of URLs the HTTP server may fetch (overrides config when set)")
 	mcpHttpCmd.Flags().StringSliceVar(&httpDenyGlobs, "deny", nil, "Glob(s) of URLs the HTTP server must block (overrides config when set)")
@@ -176,8 +176,8 @@ func init() {
 	mcpCmd.Flags().StringVar(&googleCx, "google-cx", "", "cx value for Google Custom Search")
 	mcpCmd.Flags().StringVar(&googleKey, "google-key", "", "API key for Google Custom Search")
 	mcpCmd.Flags().StringVar(&searchEngine, "search-engine", "google_custom", "Search engine to use (e.g. google_custom)")
-	mcpCmd.Flags().StringVar(&searchCachePath, "cache", "", "Path to the SQLite search cache database")
-	mcpCmd.Flags().StringVar(&searchCacheExpiresStr, "cache-expires", "", "Cache expiration time")
+	mcpCmd.Flags().StringVar(&cachePath, "cache", "", "Path to the SQLite cache database")
+	mcpCmd.Flags().StringVar(&cacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	mcpCmd.Flags().StringVar(&summaryLLMModel, "llm-model", "", "LLM Model name")
 	mcpCmd.Flags().StringVar(&summaryAPIKey, "llm-api-key", "", "LLM API Key (will also read LLM_API_KEY env var)")
 	mcpCmd.Flags().StringVar(&summaryBaseURL, "llm-base-url", "", "LLM Base URL")

@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/mbreese/mcpfurl/fetchurl"
 	"github.com/spf13/cobra"
@@ -25,6 +26,18 @@ var fetchCmd = &cobra.Command{
 		if len(args) < 1 {
 			fmt.Fprintln(os.Stderr, "You must specify a URL")
 			os.Exit(1)
+		}
+
+		var cacheExpires time.Duration
+		if cachePath != "" {
+			if cacheExpiresStr == "" {
+				log.Fatalf("Provide --cache-expires or set cache.expires in config when cache is enabled")
+			}
+			var err error
+			cacheExpires, err = fetchurl.ConvertTTLToDuration(cacheExpiresStr)
+			if err != nil {
+				log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
+			}
 		}
 
 		url := args[0]
@@ -47,6 +60,8 @@ var fetchCmd = &cobra.Command{
 			// WebDriverLogging:    webDriverLog,
 			Logger:          logger,
 			UsePandoc:       usePandoc,
+			CachePath:       cachePath,
+			CacheExpires:    cacheExpires,
 			AllowedURLGlobs: httpAllowGlobs,
 			DenyURLGlobs:    httpDenyGlobs,
 			UrlSelectors:    selectors,
