@@ -251,6 +251,7 @@ func browserFetchImage(ctx context.Context, req *mcp.CallToolRequest, args Image
 	}, nil
 }
 
+
 func addCrawlResources(server *mcp.Server, fetcher *fetchurl.WebFetcher, crawlCfg []CrawlResourceConfig) {
 	if fetcher == nil || len(crawlCfg) == 0 {
 		return
