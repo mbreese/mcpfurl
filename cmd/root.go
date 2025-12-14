@@ -43,6 +43,9 @@ var debugCmd = &cobra.Command{
 				if userConfig.MCPFurlCfg.Verbose != nil {
 					fmt.Printf("  verbose        : %t\n", *userConfig.MCPFurlCfg.Verbose)
 				}
+				if userConfig.MCPFurlCfg.CrawlSameOrigin != nil {
+					fmt.Printf("  crawl_same_base_path : %t\n", *userConfig.MCPFurlCfg.CrawlSameOrigin)
+				}
 				if len(userConfig.MCPFurlCfg.Allow) > 0 {
 					fmt.Printf("  allow         : %v\n", userConfig.MCPFurlCfg.Allow)
 				}
@@ -96,6 +99,7 @@ var debugCmd = &cobra.Command{
 		fmt.Printf("search_engine  : %s\n", searchEngine)
 		fmt.Printf("cache_path     : %s\n", cachePath)
 		fmt.Printf("cache_expires  : %s\n", cacheExpiresStr)
+		fmt.Printf("crawl_same_base_path : %t\n", sameBasePathOnly)
 		fmt.Printf("google_cx      : %s\n", googleCx)
 		fmt.Printf("google_key     : %s\n", googleKey)
 		if userConfig != nil && userConfig.HTTPCfg != nil && userConfig.HTTPCfg.MasterKey != nil && *userConfig.HTTPCfg.MasterKey != "" {
