@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mbreese/mcpfurl/fetchurl"
+	"github.com/mbreese/mcpfurl/mcpserver"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )
@@ -22,27 +23,38 @@ type MCPFurlConfig struct {
 	// WebDriverPort *int    `toml:"web_driver_port"`
 	// WebDriverPath *string `toml:"web_driver_path"`
 	// WebDriverLog  *string `toml:"web_driver_log"`
-	UsePandoc      *bool    `toml:"use_pandoc"`
-	SearchEngine   *string  `toml:"search_engine"`
-	Verbose        *bool    `toml:"verbose"`
-	FetchDesc      *string  `toml:"fetch_tool_desc"`
-	SearchDesc     *string  `toml:"search_tool_desc"`
-	ImageDesc      *string  `toml:"image_tool_desc"`
-	SummaryDesc    *string  `toml:"summary_tool_desc"`
-	DisableFetch   *bool    `toml:"disable_fetch"`
-	DisableImage   *bool    `toml:"disable_image"`
-	DisableSearch  *bool    `toml:"disable_search"`
-	DisableSummary *bool    `toml:"disable_summary"`
-	Allow          []string `toml:"allow"`
-	Deny           []string `toml:"deny"`
+	UsePandoc       *bool    `toml:"use_pandoc"`
+	SearchEngine    *string  `toml:"search_engine"`
+	Verbose         *bool    `toml:"verbose"`
+	FetchDesc       *string  `toml:"fetch_tool_desc"`
+	SearchDesc      *string  `toml:"search_tool_desc"`
+	ImageDesc       *string  `toml:"image_tool_desc"`
+	SummaryDesc     *string  `toml:"summary_tool_desc"`
+	DisableFetch    *bool    `toml:"disable_fetch"`
+	CrawlSameOrigin *bool    `toml:"crawl_same_origin"`
+	CrawlSameBase   *bool    `toml:"crawl_same_base_path"`
+	DisableImage    *bool    `toml:"disable_image"`
+	DisableSearch   *bool    `toml:"disable_search"`
+	DisableSummary  *bool    `toml:"disable_summary"`
+	Allow           []string `toml:"allow"`
+	Deny            []string `toml:"deny"`
 
 	// Note: these are only configurable through config.toml, no cmdline arguments
 	SelectorCfg []UrlSelectorConfig `toml:"selectors"`
+	CrawlCfg    []CrawlConfig       `toml:"crawl"`
 }
 
 type UrlSelectorConfig struct {
 	Url      *string `toml:"url"`
 	Selector *string `toml:"selector"`
+}
+
+type CrawlConfig struct {
+	Url        *string `toml:"url"`
+	Depth      *int    `toml:"depth"`
+	MaxPages   *int    `toml:"max_pages"`
+	Selector   *string `toml:"selector"`
+	SameOrigin *bool   `toml:"same_origin"`
 }
 type MCPHTTPServerConfig struct {
 	Addr          *string `toml:"addr"`
@@ -181,6 +193,13 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPFurlConfig) {
 	if cfg.DisableSummary != nil && !cmd.Flags().Changed("disable-summary") {
 		disableSummary = *cfg.DisableSummary
 	}
+	if !cmd.Flags().Changed("same-base-path") {
+		if cfg.CrawlSameBase != nil {
+			sameBasePathOnly = *cfg.CrawlSameBase
+		} else if cfg.CrawlSameOrigin != nil {
+			sameBasePathOnly = *cfg.CrawlSameOrigin
+		}
+	}
 	if cfg.SearchEngine != nil && !cmd.Flags().Changed("search-engine") {
 		searchEngine = *cfg.SearchEngine
 	}
@@ -212,6 +231,38 @@ func applyCommonConfig(cmd *cobra.Command, cfg *MCPFurlConfig) {
 			if s.Url != nil && s.Selector != nil {
 				selectors = append(selectors, fetchurl.UrlSelector{Url: *s.Url, Selector: *s.Selector})
 			}
+		}
+	}
+
+	if len(cfg.CrawlCfg) > 0 {
+		crawlResources = nil
+		for _, c := range cfg.CrawlCfg {
+			if c.Url == nil {
+				continue
+			}
+			depth := 1
+			if c.Depth != nil {
+				depth = *c.Depth
+			}
+			maxPages := 20
+			if c.MaxPages != nil {
+				maxPages = *c.MaxPages
+			}
+			selector := ""
+			if c.Selector != nil {
+				selector = *c.Selector
+			}
+			sameOrigin := true
+			if c.SameOrigin != nil {
+				sameOrigin = *c.SameOrigin
+			}
+			crawlResources = append(crawlResources, mcpserver.CrawlResourceConfig{
+				URL:        *c.Url,
+				Depth:      depth,
+				MaxPages:   maxPages,
+				Selector:   selector,
+				SameOrigin: sameOrigin,
+			})
 		}
 	}
 }

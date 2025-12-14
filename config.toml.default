@@ -4,6 +4,7 @@
 web_driver_port = 9515
 web_driver_path = "/usr/bin/chromedriver"
 use_pandoc = false
+crawl_same_base_path = true
 
 # set to search_engine to "" to disable searching
 search_engine = "google_custom"
@@ -30,6 +31,13 @@ master_key = ""
 [cache]
 db_path = ""
 expires = "14d"
+
+[ [mcpfurl.crawl] ]
+url = "https://example.com"
+depth = 1
+max_pages = 5
+selector = "body"
+same_origin = true
 
 [google_custom]
 cx = ""

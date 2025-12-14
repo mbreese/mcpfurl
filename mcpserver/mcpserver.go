@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log"
 	"log/slog"
 	"net/http"
@@ -75,13 +76,22 @@ type MCPServerOptions struct {
 	DisableFetch   bool
 	DisableImage   bool
 	DisableSummary bool
-	EnableRestAPI  bool // register POST /fetch REST endpoint
+	EnableRestAPI  bool // register REST API endpoints at /api/*
+	CrawlResources []CrawlResourceConfig
 }
 
 var fetcher *fetchurl.WebFetcher
 
 // var server *mcp.Server
 var logger *slog.Logger
+
+type CrawlResourceConfig struct {
+	URL        string
+	Depth      int
+	MaxPages   int
+	Selector   string
+	SameOrigin bool
+}
 
 func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParams) (*mcp.CallToolResult, *WebFetchOutput, error) {
 	if args.URL == "" {
@@ -139,7 +149,7 @@ func webSearch(ctx context.Context, req *mcp.CallToolRequest, args WebSearchPara
 	if args.OutputMarkdown {
 		ret := "# Search results\n\n"
 		for _, result := range results {
- 			ret += fmt.Sprintf("Title: %s\nLink: %s\nSnippet: %s\n\n---\n\n", result.Title, result.Link, result.Snippet)
+			ret += fmt.Sprintf("Title: %s\nLink: %s\nSnippet: %s\n\n---\n\n", result.Title, result.Link, result.Snippet)
 		}
 		return nil, &WebSearchOutput{Query: args.Query, ResultsMarkdown: ret}, nil
 	}
@@ -209,6 +219,71 @@ func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchPa
 	}, nil
 }
 
+func addCrawlResources(server *mcp.Server, fetcher *fetchurl.WebFetcher, crawlCfg []CrawlResourceConfig) {
+	if fetcher == nil || len(crawlCfg) == 0 {
+		return
+	}
+
+	cache := make(map[string]string) // uri -> markdown
+
+	for _, cfg := range crawlCfg {
+		if cfg.URL == "" {
+			continue
+		}
+		depth := cfg.Depth
+		if depth <= 0 {
+			depth = 1
+		}
+		maxPages := cfg.MaxPages
+		if maxPages <= 0 {
+			maxPages = 20
+		}
+		timeout := time.Duration(maxPages*2) * time.Second
+		if timeout < 30*time.Second {
+			timeout = 30 * time.Second
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		pages, err := fetcher.Crawl(ctx, cfg.URL, depth, maxPages, cfg.SameOrigin, cfg.Selector)
+		cancel()
+		if err != nil {
+			logger.Warn("crawl resource failed", slog.String("url", cfg.URL), slog.Any("error", err))
+			continue
+		}
+
+		for _, page := range pages {
+			markdown, err := fetcher.WebpageToMarkdownYaml(page)
+			if err != nil {
+				logger.Warn("markdown conversion failed", slog.String("url", page.CurrentURL), slog.Any("error", err))
+				continue
+			}
+			uri := page.CurrentURL
+			if _, exists := cache[uri]; exists {
+				continue
+			}
+			cache[uri] = markdown
+			resource := &mcp.Resource{
+				URI:         uri,
+				Name:        uri,
+				MIMEType:    "text/markdown",
+				Description: fmt.Sprintf("Crawled page from %s", html.EscapeString(cfg.URL)),
+			}
+			server.AddResource(resource, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+				content, ok := cache[req.Params.URI]
+				if !ok {
+					return nil, mcp.ResourceNotFoundError(req.Params.URI)
+				}
+				return &mcp.ReadResourceResult{
+					Contents: []*mcp.ResourceContents{{
+						URI:      req.Params.URI,
+						MIMEType: "text/markdown",
+						Text:     content,
+					}},
+				}, nil
+			})
+		}
+	}
+}
+
 func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mcp.Server {
 	if mcpOpts.FetchDesc == "" {
 		mcpOpts.FetchDesc = "Fetch a webpage and return the content in Markdown format"
@@ -254,6 +329,8 @@ func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mc
 			}, webSearch)
 		}
 	}
+
+	addCrawlResources(server, fetcher, mcpOpts.CrawlResources)
 
 	return server
 }

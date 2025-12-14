@@ -58,6 +58,7 @@ var mcpCmd = &cobra.Command{
 			DisableFetch:   disableFetch,
 			DisableImage:   disableImage,
 			DisableSummary: disableSummary,
+			CrawlResources: crawlResources,
 		})
 	},
 }
@@ -117,6 +118,7 @@ var mcpHttpCmd = &cobra.Command{
 			DisableImage:   disableImage,
 			DisableSummary: disableSummary,
 			EnableRestAPI:  enableRestAPI,
+			CrawlResources: crawlResources,
 		})
 	},
 }
@@ -137,6 +139,7 @@ var disableFetch bool
 var disableImage bool
 var disableSearch bool
 var disableSummary bool
+var crawlResources []mcpserver.CrawlResourceConfig
 
 var selectors []fetchurl.UrlSelector
 

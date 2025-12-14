@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/mbreese/mcpfurl/fetchurl"
 	"github.com/mbreese/mcpfurl/mcpserver"
@@ -29,9 +30,16 @@ var searchCmd = &cobra.Command{
 			log.Fatalf("Provide --google-cx/--google-key or set google_custom.cx/google_custom.key in your config.")
 		}
 
-		cacheExpires, err := fetchurl.ConvertTTLToDuration(cacheExpiresStr)
-		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
+		var cacheExpires time.Duration
+		var err error
+		if cachePath != "" {
+			if cacheExpiresStr == "" {
+				log.Fatalf("Provide --cache-expires or set cache.expires in config when cache is enabled")
+			}
+			cacheExpires, err = fetchurl.ConvertTTLToDuration(cacheExpiresStr)
+			if err != nil {
+				log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
+			}
 		}
 
 		if len(args) < 1 {
