@@ -29,9 +29,9 @@ var searchCmd = &cobra.Command{
 			log.Fatalf("Provide --google-cx/--google-key or set google_custom.cx/google_custom.key in your config.")
 		}
 
-		searchCacheExpires, err := fetchurl.ConvertTTLToDuration(searchCacheExpiresStr)
+		cacheExpires, err := fetchurl.ConvertTTLToDuration(cacheExpiresStr)
 		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value: %s", searchCacheExpiresStr)
+			log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
 		}
 
 		if len(args) < 1 {
@@ -50,12 +50,12 @@ var searchCmd = &cobra.Command{
 			ConvertAbsoluteHref: useAbsHref,
 			// WebDriverPort:       webDriverPort,
 			// ChromeDriverPath:    webDriverPath,
-			Logger:             logger,
-			SearchEngine:       searchEngine,
-			GoogleSearchCx:     googleCx,
-			GoogleSearchKey:    googleKey,
-			SearchCachePath:    searchCachePath,
-			SearchCacheExpires: searchCacheExpires,
+			Logger:          logger,
+			SearchEngine:    searchEngine,
+			GoogleSearchCx:  googleCx,
+			GoogleSearchKey: googleKey,
+			CachePath:       cachePath,
+			CacheExpires:    cacheExpires,
 		})
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
@@ -85,8 +85,8 @@ var searchCmd = &cobra.Command{
 var googleCx string
 var googleKey string
 var searchEngine = "google_custom"
-var searchCachePath string
-var searchCacheExpiresStr string
+var cachePath string
+var cacheExpiresStr string
 
 func init() {
 	// searchCmd.Flags().IntVar(&webDriverPort, "wd-port", 9515, "Use this port to communicate with chromedriver")
@@ -96,8 +96,8 @@ func init() {
 	searchCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	searchCmd.Flags().BoolVar(&convertToMarkdown2, "md", false, "Alias for --markdown")
 	searchCmd.Flags().BoolVarP(&convertToMarkdown, "markdown", "m", false, "Convert HTML to Markdown")
-	searchCmd.Flags().StringVar(&searchCachePath, "search-cache", "", "Path to the SQLite search cache database")
-	searchCmd.Flags().StringVar(&searchCacheExpiresStr, "search-expires", "", "Max time to keep a search result (ex: 12h, 30m, or 120s)")
+	searchCmd.Flags().StringVar(&cachePath, "cache", "", "Path to the SQLite cache database")
+	searchCmd.Flags().StringVar(&cacheExpiresStr, "cache-expires", "", "Max time to keep a cached result (ex: 12h, 30m, or 120s)")
 	searchCmd.Flags().MarkHidden("md")
 
 	rootCmd.AddCommand(searchCmd)

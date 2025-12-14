@@ -63,8 +63,8 @@ type GoogleCustomConfig struct {
 }
 
 type CacheConfig struct {
-	SearchDB *string `toml:"db_path"`
-	Expires  *string `toml:"expires"`
+	DBPath  *string `toml:"db_path"`
+	Expires *string `toml:"expires"`
 }
 
 var configFilePath string
@@ -260,11 +260,11 @@ func applyCacheConfig(cmd *cobra.Command) {
 	}
 	cfg := userConfig.CacheCfg
 
-	if cfg.SearchDB != nil && !cmd.Flags().Changed("search-cache") {
-		searchCachePath = *cfg.SearchDB
+	if cfg.DBPath != nil && !cmd.Flags().Changed("cache") {
+		cachePath = *cfg.DBPath
 	}
-	if cfg.Expires != nil && !cmd.Flags().Changed("search-expires") {
-		searchCacheExpiresStr = *cfg.Expires
+	if cfg.Expires != nil && !cmd.Flags().Changed("cache-expires") {
+		cacheExpiresStr = *cfg.Expires
 	}
 }
 

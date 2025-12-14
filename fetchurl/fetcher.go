@@ -16,7 +16,7 @@ type WebFetcher struct {
 	done bool
 	// lock   sync.Mutex
 	search SearchEngine
-	cache  *SearchCache
+	cache  *CacheDB
 }
 
 type WebFetcherOptions struct {
@@ -30,8 +30,8 @@ type WebFetcherOptions struct {
 	SearchEngine        string
 	GoogleSearchCx      string
 	GoogleSearchKey     string
-	SearchCachePath     string
-	SearchCacheExpires  time.Duration
+	CachePath           string
+	CacheExpires        time.Duration
 	AllowedURLGlobs     []string
 	DenyURLGlobs        []string
 	UrlSelectors        []UrlSelector
@@ -74,24 +74,23 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 
+	var cache *CacheDB
+
+	if opts.CachePath != "" {
+		cacheDB, err := NewCacheDB(opts.CachePath, opts.CacheExpires)
+		if err != nil {
+			return nil, err
+		}
+		cache = cacheDB
+	}
+
 	var search SearchEngine
-	var cache *SearchCache
 
 	if opts.SearchEngine == "google_custom" {
 		if opts.GoogleSearchCx != "" && opts.GoogleSearchKey != "" {
 			search = NewGoogleCustomSearch(opts.GoogleSearchCx, opts.GoogleSearchKey)
 		} else {
 			opts.Logger.Info("missing Google cx and/or api key values, disabling search")
-		}
-
-		if search != nil {
-			if opts.SearchCachePath != "" {
-				searchCache, err := NewSearchCache(opts.SearchCachePath, opts.SearchCacheExpires)
-				if err != nil {
-					return nil, err
-				}
-				cache = searchCache
-			}
 		}
 	} else {
 		opts.Logger.Info("No valid search_engine configured.")
@@ -350,7 +349,7 @@ func (w *WebFetcher) SearchJSON(ctx context.Context, query string) ([]SearchResu
 			w.opts.Logger.Debug("Returning search results from cache")
 			return results, nil
 		} else if err != nil {
-			w.opts.Logger.Warn("search cache get failed", "error", err)
+			w.opts.Logger.Warn("cache get failed", "error", err)
 		}
 	}
 
@@ -361,7 +360,7 @@ func (w *WebFetcher) SearchJSON(ctx context.Context, query string) ([]SearchResu
 
 	if w.cache != nil {
 		if err := w.cache.Put(ctx, query, results); err != nil {
-			w.opts.Logger.Warn("search cache put failed", "error", err)
+			w.opts.Logger.Warn("cache put failed", "error", err)
 		}
 	}
 
@@ -397,6 +396,15 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 		selector = "body"
 	}
 
+	if w.cache != nil {
+		if page, ok, err := w.cache.GetWebPage(ctx, targetURL, selector); err == nil && ok {
+			w.opts.Logger.Debug("Returning web page from cache")
+			return page, nil
+		} else if err != nil {
+			w.opts.Logger.Warn("web cache get failed", "error", err)
+		}
+	}
+
 	var htmlSrc string
 	var title string
 	var currentUrl string
@@ -422,7 +430,15 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 		return nil, err
 	}
 
-	return &FetchedWebPage{Title: title, TargetURL: targetURL, CurrentURL: currentUrl, Src: htmlSrc}, nil
+	webpage := &FetchedWebPage{Title: title, TargetURL: targetURL, CurrentURL: currentUrl, Src: htmlSrc}
+
+	if w.cache != nil {
+		if err := w.cache.PutWebPage(ctx, targetURL, selector, webpage); err != nil {
+			w.opts.Logger.Warn("web cache put failed", "error", err)
+		}
+	}
+
+	return webpage, nil
 
 }
 

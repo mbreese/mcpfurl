@@ -73,8 +73,8 @@ var debugCmd = &cobra.Command{
 			}
 			if userConfig.CacheCfg != nil {
 				fmt.Println("[cache]")
-				if userConfig.CacheCfg.SearchDB != nil {
-					fmt.Printf("  db_path : %s\n", *userConfig.CacheCfg.SearchDB)
+				if userConfig.CacheCfg.DBPath != nil {
+					fmt.Printf("  db_path : %s\n", *userConfig.CacheCfg.DBPath)
 				}
 				if userConfig.CacheCfg.Expires != nil {
 					fmt.Printf("  expires: %s\n", *userConfig.CacheCfg.Expires)
@@ -94,8 +94,8 @@ var debugCmd = &cobra.Command{
 		fmt.Printf("use_pandoc     : %t\n", usePandoc)
 		fmt.Printf("verbose        : %t\n", verbose)
 		fmt.Printf("search_engine  : %s\n", searchEngine)
-		fmt.Printf("search_cache   : %s\n", searchCachePath)
-		fmt.Printf("cache_expires  : %s\n", searchCacheExpiresStr)
+		fmt.Printf("cache_path     : %s\n", cachePath)
+		fmt.Printf("cache_expires  : %s\n", cacheExpiresStr)
 		fmt.Printf("google_cx      : %s\n", googleCx)
 		fmt.Printf("google_key     : %s\n", googleKey)
 		if userConfig != nil && userConfig.HTTPCfg != nil && userConfig.HTTPCfg.MasterKey != nil && *userConfig.HTTPCfg.MasterKey != "" {

@@ -73,7 +73,7 @@ cx = ""
 key = ""
 ```
 
-Only the settings you override need to be present in your config file. The CLI flags mirror these names (`--wd-port`, `--search-cache`, etc.). Set `allow`/`deny` under `[mcpfurl]` to control which URLs the server may fetch; when `allow` is empty every URL is permitted unless a `deny` glob matches.
+Only the settings you override need to be present in your config file. The CLI flags mirror these names (`--wd-port`, `--cache`, etc.). Set `allow`/`deny` under `[mcpfurl]` to control which URLs the server may fetch; when `allow` is empty every URL is permitted unless a `deny` glob matches.
 
 ## Dependencies
 
