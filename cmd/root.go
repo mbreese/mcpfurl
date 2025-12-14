@@ -43,8 +43,8 @@ var debugCmd = &cobra.Command{
 				if userConfig.MCPFurlCfg.Verbose != nil {
 					fmt.Printf("  verbose        : %t\n", *userConfig.MCPFurlCfg.Verbose)
 				}
-				if userConfig.MCPFurlCfg.CrawlSameOrigin != nil {
-					fmt.Printf("  crawl_same_base_path : %t\n", *userConfig.MCPFurlCfg.CrawlSameOrigin)
+				if userConfig.MCPFurlCfg.CrawlSameBase != nil {
+					fmt.Printf("  crawl_same_base_path : %t\n", *userConfig.MCPFurlCfg.CrawlSameBase)
 				}
 				if len(userConfig.MCPFurlCfg.Allow) > 0 {
 					fmt.Printf("  allow         : %v\n", userConfig.MCPFurlCfg.Allow)

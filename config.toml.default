@@ -32,12 +32,12 @@ master_key = ""
 db_path = ""
 expires = "14d"
 
-[ [mcpfurl.crawl] ]
+[[mcpfurl.crawl]]
 url = "https://example.com"
 depth = 1
 max_pages = 5
 selector = "body"
-same_origin = true
+same_base_path = true
 
 [google_custom]
 cx = ""
