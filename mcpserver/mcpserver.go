@@ -80,11 +80,11 @@ var fetcher *fetchurl.WebFetcher
 var logger *slog.Logger
 
 type CrawlResourceConfig struct {
-	URL        string
-	Depth      int
-	MaxPages   int
-	Selector   string
-	SameOrigin bool
+	URL          string
+	Depth        int
+	MaxPages     int
+	Selector     string
+	SameBasePath bool
 }
 
 func fetchPage(ctx context.Context, req *mcp.CallToolRequest, args WebFetchParams) (*mcp.CallToolResult, *WebFetchOutput, error) {
@@ -231,7 +231,7 @@ func addCrawlResources(server *mcp.Server, fetcher *fetchurl.WebFetcher, crawlCf
 			timeout = 30 * time.Second
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		pages, err := fetcher.Crawl(ctx, cfg.URL, depth, maxPages, cfg.SameOrigin, cfg.Selector)
+		pages, err := fetcher.Crawl(ctx, cfg.URL, depth, maxPages, cfg.SameBasePath, cfg.Selector)
 		cancel()
 		if err != nil {
 			logger.Warn("crawl resource failed", slog.String("url", cfg.URL), slog.Any("error", err))
