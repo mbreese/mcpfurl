@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -70,6 +71,7 @@ type MCPServerOptions struct {
 	DisableFetch   bool
 	DisableImage   bool
 	DisableSummary bool
+	EnableRestAPI  bool // register POST /fetch REST endpoint
 }
 
 var fetcher *fetchurl.WebFetcher
@@ -246,6 +248,61 @@ func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mc
 	return server
 }
 
+// restFetchRequest is the JSON body for POST /fetch.
+type restFetchRequest struct {
+	URL      string `json:"url"`
+	Selector string `json:"selector,omitempty"`
+}
+
+// restFetchResponse is the JSON response from POST /fetch.
+type restFetchResponse struct {
+	URL        string `json:"url"`
+	CurrentURL string `json:"current_url"`
+	Title      string `json:"title"`
+	Text       string `json:"text"`
+	Error      string `json:"error,omitempty"`
+}
+
+// restFetchHandler handles POST /fetch: fetches a URL and returns title + markdown text.
+func restFetchHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req restFetchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.URL == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(restFetchResponse{Error: "missing or invalid url"}) //nolint:errcheck
+		return
+	}
+
+	logger.Info("REST fetch", slog.String("url", req.URL))
+	webpage, err := fetcher.FetchURL(r.Context(), req.URL, req.Selector)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		json.NewEncoder(w).Encode(restFetchResponse{URL: req.URL, Error: err.Error()}) //nolint:errcheck
+		return
+	}
+
+	markdown, err := fetcher.WebpageToMarkdownYaml(webpage)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(restFetchResponse{URL: req.URL, Error: err.Error()}) //nolint:errcheck
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(restFetchResponse{ //nolint:errcheck
+		URL:        webpage.TargetURL,
+		CurrentURL: webpage.CurrentURL,
+		Title:      webpage.Title,
+		Text:       markdown,
+	})
+}
+
 func StartStdio(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	opts.ConvertAbsoluteHref = true
 	logger = opts.Logger
@@ -315,6 +372,10 @@ func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 		w.Write([]byte("Hello!\n"))
 	})))
 	mux.Handle("/mcp", authWrapper(handler))
+	if mcpOpts.EnableRestAPI {
+		mux.Handle("/fetch", authWrapper(http.HandlerFunc(restFetchHandler)))
+		logger.Info("REST API enabled: POST /fetch")
+	}
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", mcpOpts.Addr, mcpOpts.Port),

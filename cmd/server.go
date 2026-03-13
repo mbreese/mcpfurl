@@ -116,6 +116,7 @@ var mcpHttpCmd = &cobra.Command{
 			DisableFetch:   disableFetch,
 			DisableImage:   disableImage,
 			DisableSummary: disableSummary,
+			EnableRestAPI:  enableRestAPI,
 		})
 	},
 }
@@ -123,6 +124,7 @@ var mcpHttpCmd = &cobra.Command{
 var mcpPort int
 var mcpAddr string
 var masterKey string
+var enableRestAPI bool
 var httpAllowGlobs []string
 var httpDenyGlobs []string
 
@@ -156,6 +158,7 @@ func init() {
 	mcpHttpCmd.Flags().StringVar(&cachePath, "cache", "", "Path to the SQLite cache database")
 	mcpHttpCmd.Flags().StringVar(&cacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	mcpHttpCmd.Flags().StringVar(&masterKey, "master-key", "", "Require HTTP Authorization: Bearer <value> to access the MCP server")
+	mcpHttpCmd.Flags().BoolVar(&enableRestAPI, "rest-api", false, "Enable REST API endpoint POST /fetch")
 	mcpHttpCmd.Flags().StringSliceVar(&httpAllowGlobs, "allow", nil, "Glob(s) of URLs the HTTP server may fetch (overrides config when set)")
 	mcpHttpCmd.Flags().StringSliceVar(&httpDenyGlobs, "deny", nil, "Glob(s) of URLs the HTTP server must block (overrides config when set)")
 	mcpHttpCmd.Flags().StringVar(&summaryLLMModel, "llm-model", "", "LLM Model name")

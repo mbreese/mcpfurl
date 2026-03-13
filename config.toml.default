@@ -25,6 +25,7 @@ deny = [
 addr = "0.0.0.0"
 port = 8080
 master_key = ""
+# enable_rest_api = false   # set to true to expose POST /fetch REST endpoint
 
 [cache]
 db_path = ""

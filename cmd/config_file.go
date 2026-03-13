@@ -45,9 +45,10 @@ type UrlSelectorConfig struct {
 	Selector *string `toml:"selector"`
 }
 type MCPHTTPServerConfig struct {
-	Addr      *string `toml:"addr"`
-	Port      *int    `toml:"port"`
-	MasterKey *string `toml:"master_key"`
+	Addr          *string `toml:"addr"`
+	Port          *int    `toml:"port"`
+	MasterKey     *string `toml:"master_key"`
+	EnableRestAPI *bool   `toml:"enable_rest_api"`
 }
 
 type SummaryLLMConfig struct {
@@ -135,6 +136,9 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 		}
 		if cfg.MasterKey != nil && !cmd.Flags().Changed("master-key") {
 			masterKey = *cfg.MasterKey
+		}
+		if cfg.EnableRestAPI != nil && !cmd.Flags().Changed("rest-api") {
+			enableRestAPI = *cfg.EnableRestAPI
 		}
 		applyHTTPMasterKeyEnv(cmd)
 		return
