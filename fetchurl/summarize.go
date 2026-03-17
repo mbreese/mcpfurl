@@ -12,7 +12,8 @@ type WebPageSummary struct {
 	TargetURL  string `json:"target_url"`
 	CurrentURL string `json:"current_url"`
 	Title      string `json:"title"`
-	Summary    string `json:"summary"`
+	Text       string `json:"text"`    // full markdown content
+	Summary    string `json:"summary"` // LLM-generated summary
 }
 
 func (s WebPageSummary) ToYaml() string {
@@ -65,6 +66,7 @@ func (w *WebFetcher) SummarizeURL(ctx context.Context, targetURL string, selecto
 		TargetURL:  webpage.TargetURL,
 		CurrentURL: webpage.CurrentURL,
 		Title:      webpage.Title,
+		Text:       md,
 		Summary:    summary,
 	}, err
 }

@@ -37,8 +37,12 @@ type WebFetchOutput struct {
 }
 
 type WebSummaryOutput struct {
-	Summary string `json:"content" jsonschema:"The summary of a webpage in Markdown format"`
-	Error   string `json:"error,omitempty" jsonschema:"Any error messages"`
+	TargetURL  string `json:"target_url"  jsonschema:"The original target URL"`
+	CurrentURL string `json:"current_url" jsonschema:"The final URL after any redirects"`
+	Title      string `json:"title"       jsonschema:"The page title"`
+	Text       string `json:"text"        jsonschema:"Full page content as Markdown"`
+	Summary    string `json:"summary"     jsonschema:"LLM-generated summary of the page"`
+	Error      string `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
 type WebSearchOutput struct {
@@ -163,7 +167,13 @@ func summarizePage(ctx context.Context, req *mcp.CallToolRequest, args WebSummar
 		}, &WebSummaryOutput{Error: fmt.Sprintf("Error fetching URL: %s => %v", args.URL, err)}, nil
 	}
 
-	return nil, &WebSummaryOutput{Summary: webpage.ToYaml()}, nil
+	return nil, &WebSummaryOutput{
+		TargetURL:  webpage.TargetURL,
+		CurrentURL: webpage.CurrentURL,
+		Title:      webpage.Title,
+		Text:       webpage.Text,
+		Summary:    webpage.Summary,
+	}, nil
 
 }
 
