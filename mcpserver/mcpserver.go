@@ -605,6 +605,16 @@ func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 		mux.Handle("/api/search", authWrapper(http.HandlerFunc(apiWebSearch)))
 	}
 
+	// REST API endpoints — same functionality as MCP tools, less protocol overhead.
+	if mcpOpts.EnableAPI {
+		logger.Info("REST API enabled at /api/*")
+		mux.Handle("/api/fetch", authWrapper(http.HandlerFunc(apiWebFetch)))
+		mux.Handle("/api/summary", authWrapper(http.HandlerFunc(apiWebSummary)))
+		mux.Handle("/api/image", authWrapper(http.HandlerFunc(apiImageFetch)))
+		mux.Handle("/api/browser-image", authWrapper(http.HandlerFunc(apiBrowserImageFetch)))
+		mux.Handle("/api/search", authWrapper(http.HandlerFunc(apiWebSearch)))
+	}
+
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", mcpOpts.Addr, mcpOpts.Port),
 		Handler: mux,
