@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"html"
 	"log"
@@ -71,6 +72,7 @@ type MCPServerOptions struct {
 	DisableFetch   bool
 	DisableImage   bool
 	DisableSummary bool
+	EnableAPI      bool // expose REST API endpoints under /api/
 	CrawlResources []CrawlResourceConfig
 }
 
@@ -382,6 +384,150 @@ func StartStdio(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	}
 }
 
+// ── REST API handlers ─────────────────────────────────────────────────────
+
+// apiWebFetch handles GET /api/fetch?url=...
+// Returns the webpage content as markdown.
+func apiWebFetch(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, `{"error":"missing url parameter"}`, http.StatusBadRequest)
+		return
+	}
+	if fetcher == nil {
+		http.Error(w, `{"error":"fetcher not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+	logger.Info(fmt.Sprintf("API web_fetch: %s", url))
+	page, err := fetcher.FetchURL(r.Context(), url, "")
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	md, _ := fetcher.WebpageToMarkdownYaml(page)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"target_url":  page.TargetURL,
+		"current_url": page.CurrentURL,
+		"title":       page.Title,
+		"content":     md,
+	})
+}
+
+// apiWebSummary handles GET /api/summary?url=...&short=true
+// Returns a summarized version of the webpage.
+func apiWebSummary(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, `{"error":"missing url parameter"}`, http.StatusBadRequest)
+		return
+	}
+	if fetcher == nil {
+		http.Error(w, `{"error":"fetcher not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+	short := r.URL.Query().Get("short") == "true"
+	logger.Info(fmt.Sprintf("API web_summary: %s (short=%v)", url, short))
+	page, err := fetcher.SummarizeURL(r.Context(), url, "", short)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"target_url":  page.TargetURL,
+		"current_url": page.CurrentURL,
+		"title":       page.Title,
+		"summary":     page.Summary,
+	})
+}
+
+// apiImageFetch handles GET /api/image?url=...
+// Returns the raw binary image (proxied).
+func apiImageFetch(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, `{"error":"missing url parameter"}`, http.StatusBadRequest)
+		return
+	}
+	if fetcher == nil {
+		http.Error(w, `{"error":"fetcher not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+	logger.Info(fmt.Sprintf("API image_fetch: %s", url))
+	resource, err := fetcher.DownloadResource(r.Context(), url)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if resource.ContentType != "" {
+		w.Header().Set("Content-Type", resource.ContentType)
+	}
+	if resource.Filename != "" {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", resource.Filename))
+	}
+	w.Write(resource.Body)
+}
+
+// apiBrowserImageFetch handles GET /api/browser-image?url=...
+// Uses headless Chrome to bypass bot detection, returns raw binary image.
+func apiBrowserImageFetch(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, `{"error":"missing url parameter"}`, http.StatusBadRequest)
+		return
+	}
+	if fetcher == nil {
+		http.Error(w, `{"error":"fetcher not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+	logger.Info(fmt.Sprintf("API browser_image_fetch: %s", url))
+	resource, err := fetcher.BrowserDownloadResource(r.Context(), url)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if resource.ContentType != "" {
+		w.Header().Set("Content-Type", resource.ContentType)
+	}
+	if resource.Filename != "" {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", resource.Filename))
+	}
+	w.Write(resource.Body)
+}
+
+// apiWebSearch handles GET /api/search?q=...
+// Returns search results as JSON.
+func apiWebSearch(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, `{"error":"missing q parameter"}`, http.StatusBadRequest)
+		return
+	}
+	if fetcher == nil || !fetcher.HasSearch() {
+		http.Error(w, `{"error":"search not configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	logger.Info(fmt.Sprintf("API web_search: %s", query))
+	results, err := fetcher.SearchJSON(r.Context(), query)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"query":   query,
+		"results": results,
+	})
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
+}
+
+func writeJSONError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
+}
+
 func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 	opts.ConvertAbsoluteHref = true
 	logger = opts.Logger
@@ -429,6 +575,16 @@ func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 		w.Write([]byte("Hello!\n"))
 	})))
 	mux.Handle("/mcp", authWrapper(handler))
+
+	// REST API endpoints — same functionality as MCP tools, less protocol overhead.
+	if mcpOpts.EnableAPI {
+		logger.Info("REST API enabled at /api/*")
+		mux.Handle("/api/fetch", authWrapper(http.HandlerFunc(apiWebFetch)))
+		mux.Handle("/api/summary", authWrapper(http.HandlerFunc(apiWebSummary)))
+		mux.Handle("/api/image", authWrapper(http.HandlerFunc(apiImageFetch)))
+		mux.Handle("/api/browser-image", authWrapper(http.HandlerFunc(apiBrowserImageFetch)))
+		mux.Handle("/api/search", authWrapper(http.HandlerFunc(apiWebSearch)))
+	}
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", mcpOpts.Addr, mcpOpts.Port),
