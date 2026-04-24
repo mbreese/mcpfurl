@@ -219,6 +219,38 @@ func fetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchPa
 	}, nil
 }
 
+func browserFetchImage(ctx context.Context, req *mcp.CallToolRequest, args ImageFetchParams) (*mcp.CallToolResult, *ImageFetchOutput, error) {
+	if args.URL == "" {
+		return &mcp.CallToolResult{
+				IsError: true,
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: "Missing URL"},
+				},
+			}, &ImageFetchOutput{
+				Error: "Missing URL",
+			}, nil
+	}
+
+	logger.Info(fmt.Sprintf("Browser downloading asset: %s", args.URL))
+	resource, err := fetcher.BrowserDownloadResource(ctx, args.URL)
+	if err != nil {
+		return &mcp.CallToolResult{
+				IsError: true,
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: err.Error()},
+				},
+			}, &ImageFetchOutput{
+				Error: err.Error(),
+			}, nil
+	}
+
+	return nil, &ImageFetchOutput{
+		Filename:    resource.Filename,
+		ContentType: resource.ContentType,
+		DataBase64:  base64.StdEncoding.EncodeToString(resource.Body),
+	}, nil
+}
+
 func addCrawlResources(server *mcp.Server, fetcher *fetchurl.WebFetcher, crawlCfg []CrawlResourceConfig) {
 	if fetcher == nil || len(crawlCfg) == 0 {
 		return
@@ -311,6 +343,11 @@ func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mc
 			Name:        "image_fetch",
 			Description: mcpOpts.ImageDesc,
 		}, fetchImage)
+
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "browser_image_fetch",
+			Description: "Download an image using headless Chrome (bypasses bot detection/reCAPTCHA). Returns base64 data.",
+		}, browserFetchImage)
 	}
 
 	if !mcpOpts.DisableSummary {
