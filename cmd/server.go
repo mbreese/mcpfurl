@@ -21,9 +21,13 @@ var mcpCmd = &cobra.Command{
 		applyCacheConfig(cmd)
 		applySummaryConfig(cmd)
 
-		cacheExpires, err := fetchurl.ConvertTTLToDuration(cacheExpiresStr)
-		if err != nil {
-			log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
+		var cacheExpires time.Duration
+		if cachePath != "" && cacheExpiresStr != "" {
+			var err error
+			cacheExpires, err = fetchurl.ConvertTTLToDuration(cacheExpiresStr)
+			if err != nil {
+				log.Fatalf("Unable to parse cache-expires value: %s", cacheExpiresStr)
+			}
 		}
 
 		var logger *slog.Logger
@@ -117,7 +121,7 @@ var mcpHttpCmd = &cobra.Command{
 			DisableFetch:   disableFetch,
 			DisableImage:   disableImage,
 			DisableSummary: disableSummary,
-			EnableRestAPI:  enableRestAPI,
+			EnableAPI:      enableAPI,
 			CrawlResources: crawlResources,
 		})
 	},
@@ -126,7 +130,6 @@ var mcpHttpCmd = &cobra.Command{
 var mcpPort int
 var mcpAddr string
 var masterKey string
-var enableRestAPI bool
 var httpAllowGlobs []string
 var httpDenyGlobs []string
 
@@ -139,6 +142,7 @@ var disableFetch bool
 var disableImage bool
 var disableSearch bool
 var disableSummary bool
+var enableAPI bool
 var crawlResources []mcpserver.CrawlResourceConfig
 
 var selectors []fetchurl.UrlSelector
@@ -155,13 +159,13 @@ func init() {
 	mcpHttpCmd.Flags().BoolVar(&disableImage, "disable-image", false, "Disable the Image function")
 	mcpHttpCmd.Flags().BoolVar(&disableSearch, "disable-search", false, "Disable the Search function")
 	mcpHttpCmd.Flags().BoolVar(&disableSummary, "disable-summary", false, "Disable the Summary function")
+	mcpHttpCmd.Flags().BoolVar(&enableAPI, "enable-api", false, "Expose REST API endpoints at /api/*")
 	mcpHttpCmd.Flags().StringVar(&googleCx, "google-cx", "", "cx value for Google Custom Search")
 	mcpHttpCmd.Flags().StringVar(&googleKey, "google-key", "", "API key for Google Custom Search")
 	mcpHttpCmd.Flags().StringVar(&searchEngine, "search-engine", "google_custom", "Search engine to use (e.g. google_custom)")
 	mcpHttpCmd.Flags().StringVar(&cachePath, "cache", "", "Path to the SQLite cache database")
 	mcpHttpCmd.Flags().StringVar(&cacheExpiresStr, "cache-expires", "", "Cache expiration time")
 	mcpHttpCmd.Flags().StringVar(&masterKey, "master-key", "", "Require HTTP Authorization: Bearer <value> to access the MCP server")
-	mcpHttpCmd.Flags().BoolVar(&enableRestAPI, "rest-api", false, "Enable REST API endpoint POST /fetch")
 	mcpHttpCmd.Flags().StringSliceVar(&httpAllowGlobs, "allow", nil, "Glob(s) of URLs the HTTP server may fetch (overrides config when set)")
 	mcpHttpCmd.Flags().StringSliceVar(&httpDenyGlobs, "deny", nil, "Glob(s) of URLs the HTTP server must block (overrides config when set)")
 	mcpHttpCmd.Flags().StringVar(&summaryLLMModel, "llm-model", "", "LLM Model name")

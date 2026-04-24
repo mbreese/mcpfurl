@@ -148,8 +148,8 @@ func applyMCPHTTPConfig(cmd *cobra.Command) {
 		if cfg.MasterKey != nil && !cmd.Flags().Changed("master-key") {
 			masterKey = *cfg.MasterKey
 		}
-		if cfg.EnableRestAPI != nil && !cmd.Flags().Changed("rest-api") {
-			enableRestAPI = *cfg.EnableRestAPI
+		if cfg.EnableRestAPI != nil && !cmd.Flags().Changed("enable-api") {
+			enableAPI = *cfg.EnableRestAPI
 		}
 		applyHTTPMasterKeyEnv(cmd)
 		return
