@@ -33,7 +33,7 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(w.browserCtx, timeout)
 	defer cancel()
 
 	ctx, cancel2 := chromedp.NewContext(ctx)

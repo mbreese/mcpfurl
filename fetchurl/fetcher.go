@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -12,8 +13,10 @@ import (
 type WebFetcher struct {
 	// service *selenium.Service
 	// wd      *selenium.WebDriver
-	opts WebFetcherOptions
-	done bool
+	opts       WebFetcherOptions
+	done       bool
+	browserCtx context.Context
+	browserCan context.CancelFunc
 	// lock   sync.Mutex
 	search SearchEngine
 	cache  *CacheDB
@@ -96,10 +99,28 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		opts.Logger.Info("No valid search_engine configured.")
 	}
 
+	// Set up a shared Chrome allocator with container-safe flags.
+	allocOpts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("no-sandbox", true),
+		chromedp.Flag("disable-crash-reporter", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
+	)
+
+	// Use chromium if google-chrome is not available (e.g. Debian container).
+	if _, err := exec.LookPath("google-chrome"); err != nil {
+		if p, err2 := exec.LookPath("chromium"); err2 == nil {
+			allocOpts = append(allocOpts, chromedp.ExecPath(p))
+		}
+	}
+
+	browserCtx, browserCan := chromedp.NewExecAllocator(context.Background(), allocOpts...)
+
 	return &WebFetcher{
-		opts:   opts,
-		search: search,
-		cache:  cache,
+		opts:       opts,
+		search:     search,
+		cache:      cache,
+		browserCtx: browserCtx,
+		browserCan: browserCan,
 	}, nil
 }
 
@@ -111,6 +132,9 @@ func (w *WebFetcher) Stop() {
 	// if w.service != nil {
 	// 	w.service.Stop()
 	// }
+	if w.browserCan != nil {
+		w.browserCan()
+	}
 	if w.cache != nil {
 		w.cache.Close()
 	}
@@ -369,7 +393,7 @@ func (w *WebFetcher) SearchJSON(ctx context.Context, query string) ([]SearchResu
 
 func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector string) (*FetchedWebPage, error) {
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
+	ctx, cancel := context.WithTimeout(w.browserCtx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
 	ctx, cancel2 := chromedp.NewContext(ctx)
 
 	defer cancel()
@@ -444,7 +468,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 
 func (w *WebFetcher) FetchURLPNG(ctx context.Context, targetURL string, selector string) ([]byte, error) {
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
+	ctx, cancel := context.WithTimeout(w.browserCtx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
 	ctx, cancel2 := chromedp.NewContext(ctx)
 
 	defer cancel()
