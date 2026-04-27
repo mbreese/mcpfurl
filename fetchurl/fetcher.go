@@ -102,8 +102,9 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 	// Set up a shared Chrome allocator with container-safe flags.
 	allocOpts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("no-sandbox", true),
-		chromedp.Flag("disable-crash-reporter", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("disable-breakpad", true),
+		chromedp.Env("CHROME_CRASHPAD_DATABASE_DIR=/tmp/crashpad"),
 	)
 
 	// Use chromium if google-chrome is not available (e.g. Debian container).
