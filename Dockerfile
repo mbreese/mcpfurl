@@ -8,8 +8,9 @@ WORKDIR /app
 RUN apt update && \
     apt -y upgrade && \
     apt install -y chromium-driver sqlite3 && \
-    mkdir -p /app && \
-    useradd -d /app -s /bin/bash user
+    mkdir -p /app /tmp/crashpad && \
+    useradd -d /app -s /bin/bash user && \
+    chown user /tmp/crashpad
 
 COPY bin/mcpfurl.linux_musl_amd64 /app/mcpfurl
 RUN chmod +x /app/mcpfurl
