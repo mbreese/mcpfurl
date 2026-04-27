@@ -8,9 +8,10 @@ WORKDIR /app
 RUN apt update && \
     apt -y upgrade && \
     apt install -y chromium-driver sqlite3 && \
-    mkdir -p /app /tmp/crashpad && \
-    useradd -d /app -s /bin/bash user && \
-    chown user /tmp/crashpad
+    mkdir -p /app && \
+    printf '#!/bin/sh\nexit 0\n' > /usr/lib/chromium/chrome_crashpad_handler && \
+    chmod +x /usr/lib/chromium/chrome_crashpad_handler && \
+    useradd -d /app -s /bin/bash user
 
 COPY bin/mcpfurl.linux_musl_amd64 /app/mcpfurl
 RUN chmod +x /app/mcpfurl
