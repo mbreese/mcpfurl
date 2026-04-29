@@ -3,7 +3,6 @@ package fetchurl
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"path"
@@ -50,47 +49,41 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 
 	// Use the browser's fetch API to download the resource with session cookies.
 	// This works because the browser has already passed any bot challenges.
-	var resultJSON string
+	// Unmarshal into a map so we don't fight CDP's JSON wrapping of awaited promises.
+	var result map[string]interface{}
 	if err := chromedp.Run(ctx,
 		chromedp.EvaluateAsDevTools(fmt.Sprintf(`
 			(async () => {
 				try {
 					const resp = await fetch(%q, {credentials: 'include'});
-					if (!resp.ok) return JSON.stringify({error: 'HTTP ' + resp.status});
+					if (!resp.ok) return {error: 'HTTP ' + resp.status};
 					const buf = await resp.arrayBuffer();
 					const bytes = new Uint8Array(buf);
 					let binary = '';
 					for (let i = 0; i < bytes.byteLength; i++) {
 						binary += String.fromCharCode(bytes[i]);
 					}
-					return JSON.stringify({
+					return {
 						data: btoa(binary),
 						type: resp.headers.get('content-type') || '',
 						status: resp.status
-					});
+					};
 				} catch(e) {
-					return JSON.stringify({error: e.message});
+					return {error: e.message};
 				}
 			})()
-		`, targetURL), &resultJSON),
+		`, targetURL), &result),
 	); err != nil {
 		return nil, fmt.Errorf("browser fetch of %s: %w", targetURL, err)
 	}
 
-	var result struct {
-		Data   string `json:"data"`
-		Type   string `json:"type"`
-		Status int    `json:"status"`
-		Error  string `json:"error"`
+	if errMsg, ok := result["error"].(string); ok && errMsg != "" {
+		return nil, fmt.Errorf("browser fetch: %s", errMsg)
 	}
-	if err := json.Unmarshal([]byte(resultJSON), &result); err != nil {
-		return nil, fmt.Errorf("parsing browser fetch result: %w", err)
-	}
-	if result.Error != "" {
-		return nil, fmt.Errorf("browser fetch: %s", result.Error)
-	}
+	dataStr, _ := result["data"].(string)
+	contentType, _ := result["type"].(string)
 
-	body, err := base64.StdEncoding.DecodeString(result.Data)
+	body, err := base64.StdEncoding.DecodeString(dataStr)
 	if err != nil {
 		return nil, fmt.Errorf("decoding browser fetch response: %w", err)
 	}
@@ -108,7 +101,7 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 
 	return &DownloadedResource{
 		Filename:    filename,
-		ContentType: result.Type,
+		ContentType: contentType,
 		Body:        body,
 	}, nil
 }
