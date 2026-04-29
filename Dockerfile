@@ -12,10 +12,13 @@ WORKDIR /app
 COPY --from=chrome /headless-shell /headless-shell
 RUN apt update && \
     apt -y upgrade && \
-    apt install -y sqlite3 libnss3 libatk1.0-0 libatk-bridge2.0-0 \
-        libcups2 libxdamage1 libpango-1.0-0 libcairo2 libasound2 \
-        libxrandr2 libxcomposite1 libxshmfence1 libgbm1 && \
-    mkdir -p /app && \
+    apt install -y sqlite3 curl fontconfig libnss3 libatk1.0-0 \
+        libatk-bridge2.0-0 libcups2 libxdamage1 libpango-1.0-0 \
+        libcairo2 libasound2 libxrandr2 libxcomposite1 libxshmfence1 \
+        libgbm1 && \
+    mkdir -p /app /var/cache/fontconfig && \
+    chmod 777 /var/cache/fontconfig && \
+    fc-cache -f && \
     useradd -d /app -s /bin/bash user
 
 COPY bin/mcpfurl.linux_musl_amd64 /app/mcpfurl
