@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"time"
 
@@ -104,14 +105,31 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		chromedp.Flag("no-sandbox", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
 		chromedp.Flag("disable-breakpad", true),
-		chromedp.Env("CHROME_CRASHPAD_DATABASE_DIR=/tmp/crashpad"),
 	)
 
-	// Use chromium if google-chrome is not available (e.g. Debian container).
-	if _, err := exec.LookPath("google-chrome"); err != nil {
-		if p, err2 := exec.LookPath("chromium"); err2 == nil {
-			allocOpts = append(allocOpts, chromedp.ExecPath(p))
+	// Look for a Chrome/Chromium binary in order of preference:
+	// 1. headless-shell (from chromedp/headless-shell Docker image)
+	// 2. google-chrome (default chromedp lookup)
+	// 3. chromium (Debian package)
+	chromePath := ""
+	for _, p := range []string{
+		"/headless-shell/headless-shell",
+	} {
+		if _, err := os.Stat(p); err == nil {
+			chromePath = p
+			break
 		}
+	}
+	if chromePath == "" {
+		for _, name := range []string{"google-chrome", "chromium"} {
+			if p, err := exec.LookPath(name); err == nil {
+				chromePath = p
+				break
+			}
+		}
+	}
+	if chromePath != "" {
+		allocOpts = append(allocOpts, chromedp.ExecPath(chromePath))
 	}
 
 	browserCtx, browserCan := chromedp.NewExecAllocator(context.Background(), allocOpts...)
