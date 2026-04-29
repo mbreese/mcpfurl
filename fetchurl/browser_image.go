@@ -52,7 +52,7 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	// This works because the browser has already passed any bot challenges.
 	var resultJSON string
 	if err := chromedp.Run(ctx,
-		chromedp.Evaluate(fmt.Sprintf(`
+		chromedp.EvaluateAsDevTools(fmt.Sprintf(`
 			(async () => {
 				try {
 					const resp = await fetch(%q, {credentials: 'include'});
