@@ -1,4 +1,4 @@
-FROM debian:stable-slim
+FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.source=https://github.com/mbreese/mcpfurl
 LABEL org.opencontainers.image.description="MCP Server for fetching web pages, images, or performing Google searches"
