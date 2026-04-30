@@ -313,7 +313,6 @@ echo "=== MCP Tool: web_summary ==="
 MCP_SUMMARY_NOURL='{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"web_summary","arguments":{"url":""}}}'
 mcpcurl "$BASE_URL/mcp" -d "$MCP_SUMMARY_NOURL"
 assert_http_code "MCP web_summary empty url" "200"
-echo "  [debug] web_summary body: $BODY" >&2
 # Check for error indicator — the tool should report an error for empty URL
 assert_contains "MCP web_summary error on empty url" "$BODY" "error"
 
