@@ -17,7 +17,8 @@ ERRORS=""
 HTTP_CODE=""
 BODY=""
 BODY_FILE=$(mktemp)
-trap 'rm -f "$BODY_FILE"' EXIT
+HEADER_FILE=$(mktemp)
+trap 'rm -f "$BODY_FILE" "$HEADER_FILE"' EXIT
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -39,14 +40,27 @@ apicurl() {
     BODY=$(cat "$BODY_FILE" 2>/dev/null) || true
 }
 
-# MCP endpoint returns SSE (text/event-stream) or JSON.
-# Extract JSON from "data:" lines if SSE, otherwise use raw body.
+# MCP session state
+MCP_SESSION_ID=""
+
+# MCP endpoint uses Streamable HTTP (SSE) with session management.
+# After initialize, we must send "initialized" and reuse the session ID.
 mcpcurl() {
     local url="$1"; shift
-    HTTP_CODE=$(curl -s -o "$BODY_FILE" -w "%{http_code}" -H "$AUTH" -H "Content-Type: application/json" -X POST "$@" "$url" 2>/dev/null) || true
-    # Debug: show raw response for troubleshooting
-    echo "  [debug] raw response (first 500 chars): $(head -c 500 "$BODY_FILE" 2>/dev/null | cat -v)" >&2
-    # Try SSE "data:" lines first, fall back to raw body
+    local session_args=()
+    if [ -n "$MCP_SESSION_ID" ]; then
+        session_args=(-H "Mcp-Session-Id: $MCP_SESSION_ID")
+    fi
+    HTTP_CODE=$(curl -s -o "$BODY_FILE" -D "$HEADER_FILE" -w "%{http_code}" \
+        -H "$AUTH" -H "Content-Type: application/json" -X POST \
+        "${session_args[@]}" "$@" "$url" 2>/dev/null) || true
+    # Capture session ID from response headers
+    local sid
+    sid=$(grep -i '^mcp-session-id:' "$HEADER_FILE" 2>/dev/null | sed 's/^[^:]*: *//' | tr -d '\r') || true
+    if [ -n "$sid" ]; then
+        MCP_SESSION_ID="$sid"
+    fi
+    # Extract JSON from SSE "data:" lines, fall back to raw body
     local sse_data
     sse_data=$(sed -n 's/^data: *//p' "$BODY_FILE" 2>/dev/null | tr '\n' ' ') || true
     if [ -n "$sse_data" ]; then
@@ -54,6 +68,22 @@ mcpcurl() {
     else
         BODY=$(cat "$BODY_FILE" 2>/dev/null) || true
     fi
+}
+
+# Initialize MCP session: sends initialize + initialized notification
+mcp_init() {
+    local url="$1"
+    # Step 1: initialize
+    local init_req='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+    mcpcurl "$url" -d "$init_req"
+    if [ "$HTTP_CODE" != "200" ]; then
+        return 1
+    fi
+    # Step 2: send initialized notification (no id = notification)
+    local initialized_req='{"jsonrpc":"2.0","method":"notifications/initialized"}'
+    curl -s -o /dev/null -H "$AUTH" -H "Content-Type: application/json" \
+        -H "Mcp-Session-Id: $MCP_SESSION_ID" -X POST \
+        -d "$initialized_req" "$url" 2>/dev/null || true
 }
 
 assert_http_code() {
@@ -208,14 +238,12 @@ fi
 echo ""
 echo "=== MCP Protocol: /mcp ==="
 
-# MCP initialize + list tools
-MCP_INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
-
-mcpcurl "$BASE_URL/mcp" -d "$MCP_INIT"
+# Initialize MCP session (initialize + initialized notification)
+mcp_init "$BASE_URL/mcp"
 assert_http_code "MCP initialize" "200"
 assert_contains "MCP returns server info" "$BODY" "mcpfurl"
 
-# List tools
+# List tools (uses session from init)
 MCP_LIST='{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 mcpcurl "$BASE_URL/mcp" -d "$MCP_LIST"
 assert_http_code "MCP tools/list" "200"
