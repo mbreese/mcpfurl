@@ -28,4 +28,15 @@ clean:
 run:
 	CGO_ENABLED=1 go run main.go
 
-.PHONY: run clean
+COMPOSE := $(shell command -v docker-compose 2>/dev/null || echo "docker compose")
+
+test-integration:
+	$(COMPOSE) -f docker-compose.test.yml up -d --build --wait
+	@./tests/run_tests.sh http://localhost:18080; ret=$$?; \
+		$(COMPOSE) -f docker-compose.test.yml down; \
+		exit $$ret
+
+test-integration-down:
+	$(COMPOSE) -f docker-compose.test.yml down
+
+.PHONY: run clean test-integration test-integration-down

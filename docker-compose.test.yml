@@ -1,0 +1,21 @@
+services:
+  mcpfurl:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    ports:
+      - "18080:8080"
+    depends_on:
+      testweb:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-H", "Authorization: Bearer test-secret", "http://localhost:8080/"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  testweb:
+    image: nginx:alpine
+    volumes:
+      - ./tests/fixtures:/usr/share/nginx/html:ro
+      - ./tests/fixtures/nginx.conf:/etc/nginx/conf.d/default.conf:ro

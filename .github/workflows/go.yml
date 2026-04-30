@@ -77,6 +77,37 @@ jobs:
           name: mcpfurl.linux_musl_amd64
           path: bin/mcpfurl.linux_musl_amd64
 
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build and start test containers
+        run: docker compose -f docker-compose.test.yml up -d --build --wait
+
+      - name: Run integration tests
+        run: ./tests/run_tests.sh http://localhost:18080
+
+      - name: Show mcpfurl logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs mcpfurl
+
+      - name: Tear down test containers
+        if: always()
+        run: docker compose -f docker-compose.test.yml down
+
+  docker-push:
+    needs: [build-linux-amd64, integration-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download linux_musl_amd64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: mcpfurl.linux_musl_amd64
+          path: bin/
+
       - name: Log in to the Container registry
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
