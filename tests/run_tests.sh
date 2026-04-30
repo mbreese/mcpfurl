@@ -29,17 +29,16 @@ fail() {
     printf "  \033[31mFAIL\033[0m %s — %s\n" "$1" "$2"
 }
 
-# curl wrapper: returns body, sets $HTTP_CODE
+# curl wrapper: returns body on stdout, sets $HTTP_CODE
 apicurl() {
     local url="$1"; shift
     local tmpfile
     tmpfile=$(mktemp)
-    local codefile
-    codefile=$(mktemp)
-    curl -so "$tmpfile" -w '%{http_code}' -H "$AUTH" "$@" "$url" > "$codefile" 2>/dev/null || true
-    HTTP_CODE=$(cat "$codefile")
-    cat "$tmpfile"
-    rm -f "$tmpfile" "$codefile"
+    curl -s -w "\n%{http_code}" -H "$AUTH" "$@" "$url" > "$tmpfile" 2>/dev/null || true
+    HTTP_CODE=$(tail -1 "$tmpfile")
+    # Print everything except the last line (the status code)
+    sed '$d' "$tmpfile"
+    rm -f "$tmpfile"
 }
 
 assert_http_code() {
@@ -97,7 +96,7 @@ echo ""
 echo "=== Authentication ==="
 
 # Request without auth should fail
-HTTP_CODE=$(curl -so /dev/null -w '%{http_code}' "$BASE_URL/" 2>/dev/null) || true
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/" 2>/dev/null) || true
 if [ "$HTTP_CODE" = "401" ]; then
     pass "unauthenticated request returns 401"
 else
@@ -105,7 +104,7 @@ else
 fi
 
 # Request with wrong key should fail
-HTTP_CODE=$(curl -so /dev/null -w '%{http_code}' -H "Authorization: Bearer wrong-key" "$BASE_URL/" 2>/dev/null) || true
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer wrong-key" "$BASE_URL/" 2>/dev/null) || true
 if [ "$HTTP_CODE" = "401" ]; then
     pass "wrong bearer token returns 401"
 else
