@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path"
 	"strings"
@@ -19,6 +20,8 @@ import (
 // pass any bot challenges, then use XMLHttpRequest (synchronous-capable) from
 // that page context to download the actual resource.
 func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL string) (*DownloadedResource, error) {
+	log := slog.Default()
+
 	if targetURL == "" {
 		return nil, fmt.Errorf("missing URL")
 	}
@@ -41,7 +44,6 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 
 	// Step 1: Navigate to the host's root page to establish cookies/pass challenges.
 	// We can't navigate to the image URL directly because raw images have no DOM.
-	// Parse the origin from the target URL.
 	hostPage := targetURL
 	if j := strings.Index(targetURL, "/bin/"); j > 0 {
 		// PMC URL like .../articles/PMC1234567/bin/fig.jpg → use article page
@@ -50,21 +52,31 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 		hostPage = targetURL[:i] + "/"
 	}
 
+	log.Info("browser_image: navigating to host page", "hostPage", hostPage, "targetURL", targetURL)
+
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(hostPage),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 	); err != nil {
+		log.Error("browser_image: navigation failed", "hostPage", hostPage, "error", err)
 		return nil, fmt.Errorf("browser navigation to %s: %w", hostPage, err)
 	}
 
-	// Step 2: From the page context (with cookies), fetch the image via XHR.
+	// Log the current URL after navigation (may have been redirected).
+	var currentURL string
+	_ = chromedp.Run(ctx, chromedp.Location(&currentURL))
+	log.Info("browser_image: page loaded", "currentURL", currentURL)
+
+	// Step 2: From the page context (with cookies), fetch the image via JS.
+	log.Info("browser_image: fetching image via JS", "targetURL", targetURL)
+
 	var result map[string]interface{}
 	if err := chromedp.Run(ctx,
 		chromedp.EvaluateAsDevTools(fmt.Sprintf(`
 			(async () => {
 				try {
 					const resp = await fetch(%q, {credentials: 'include'});
-					if (!resp.ok) return {error: 'HTTP ' + resp.status};
+					if (!resp.ok) return {error: 'HTTP ' + resp.status, status: resp.status};
 					const buf = await resp.arrayBuffer();
 					const bytes = new Uint8Array(buf);
 					let binary = '';
@@ -78,13 +90,17 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 						size: bytes.length
 					};
 				} catch(e) {
-					return {error: e.message};
+					return {error: e.message, stack: e.stack || ''};
 				}
 			})()
 		`, targetURL), &result),
 	); err != nil {
+		log.Error("browser_image: EvaluateAsDevTools failed", "error", err)
 		return nil, fmt.Errorf("browser fetch of %s: %w", targetURL, err)
 	}
+
+	log.Info("browser_image: JS fetch result", "keys", mapKeys(result),
+		"size", result["size"], "type", result["type"], "error", result["error"])
 
 	if result == nil {
 		return nil, fmt.Errorf("browser fetch: nil result for %s", targetURL)
@@ -94,7 +110,9 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	}
 	dataStr, _ := result["data"].(string)
 	contentType, _ := result["type"].(string)
-	sizeVal, _ := result["size"].(float64) // JSON numbers are float64
+	sizeVal, _ := result["size"].(float64)
+
+	log.Info("browser_image: data received", "dataLen", len(dataStr), "size", sizeVal, "contentType", contentType)
 
 	if dataStr == "" {
 		return nil, fmt.Errorf("browser fetch: empty data (size=%.0f, type=%s, keys=%v) for %s",
@@ -112,6 +130,7 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 
 	// Validate it's actually an image, not an HTML error page.
 	detected := http.DetectContentType(body)
+	log.Info("browser_image: content type check", "detected", detected, "bodyLen", len(body))
 	if !isImageContentType(detected) {
 		return nil, fmt.Errorf("browser fetch returned %s, not an image", detected)
 	}
@@ -120,6 +139,8 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	if filename == "/" || filename == "." {
 		filename = ""
 	}
+
+	log.Info("browser_image: success", "filename", filename, "bodyLen", len(body), "contentType", contentType)
 
 	return &DownloadedResource{
 		Filename:    filename,
