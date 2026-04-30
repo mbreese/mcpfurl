@@ -78,21 +78,20 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 				try {
 					var xhr = new XMLHttpRequest();
 					xhr.open('GET', %q, false);
-					xhr.responseType = 'arraybuffer';
+					xhr.overrideMimeType('text/plain; charset=x-user-defined');
 					xhr.send();
 					if (xhr.status < 200 || xhr.status >= 300) {
 						return JSON.stringify({error: 'HTTP ' + xhr.status});
 					}
-					var bytes = new Uint8Array(xhr.response);
+					var raw = xhr.responseText;
 					var binary = '';
-					var chunkSize = 8192;
-					for (var i = 0; i < bytes.length; i += chunkSize) {
-						binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+					for (var i = 0; i < raw.length; i++) {
+						binary += String.fromCharCode(raw.charCodeAt(i) & 0xff);
 					}
 					return JSON.stringify({
 						data: btoa(binary),
 						type: xhr.getResponseHeader('content-type') || '',
-						size: bytes.length
+						size: raw.length
 					});
 				} catch(e) {
 					return JSON.stringify({error: e.message});
