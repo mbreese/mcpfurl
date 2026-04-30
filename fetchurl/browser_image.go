@@ -3,6 +3,7 @@ package fetchurl
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -67,56 +68,64 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	_ = chromedp.Run(ctx, chromedp.Location(&currentURL))
 	log.Info("browser_image: page loaded", "currentURL", currentURL)
 
-	// Step 2: From the page context (with cookies), fetch the image via JS.
-	log.Info("browser_image: fetching image via JS", "targetURL", targetURL)
+	// Step 2: From the page context (with cookies), fetch the image via sync XHR.
+	log.Info("browser_image: fetching image via sync XHR", "targetURL", targetURL)
 
-	var result map[string]interface{}
+	var resultJSON string
 	if err := chromedp.Run(ctx,
 		chromedp.EvaluateAsDevTools(fmt.Sprintf(`
-			(async () => {
+			(function() {
 				try {
-					const resp = await fetch(%q, {credentials: 'include'});
-					if (!resp.ok) return {error: 'HTTP ' + resp.status, status: resp.status};
-					const buf = await resp.arrayBuffer();
-					const bytes = new Uint8Array(buf);
-					let binary = '';
-					const chunkSize = 8192;
-					for (let i = 0; i < bytes.length; i += chunkSize) {
+					var xhr = new XMLHttpRequest();
+					xhr.open('GET', %q, false);
+					xhr.responseType = 'arraybuffer';
+					xhr.send();
+					if (xhr.status < 200 || xhr.status >= 300) {
+						return JSON.stringify({error: 'HTTP ' + xhr.status});
+					}
+					var bytes = new Uint8Array(xhr.response);
+					var binary = '';
+					var chunkSize = 8192;
+					for (var i = 0; i < bytes.length; i += chunkSize) {
 						binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
 					}
-					return {
+					return JSON.stringify({
 						data: btoa(binary),
-						type: resp.headers.get('content-type') || '',
+						type: xhr.getResponseHeader('content-type') || '',
 						size: bytes.length
-					};
+					});
 				} catch(e) {
-					return {error: e.message, stack: e.stack || ''};
+					return JSON.stringify({error: e.message});
 				}
 			})()
-		`, targetURL), &result),
+		`, targetURL), &resultJSON),
 	); err != nil {
 		log.Error("browser_image: EvaluateAsDevTools failed", "error", err)
 		return nil, fmt.Errorf("browser fetch of %s: %w", targetURL, err)
 	}
 
-	log.Info("browser_image: JS fetch result", "keys", mapKeys(result),
-		"size", result["size"], "type", result["type"], "error", result["error"])
+	log.Info("browser_image: XHR result", "resultLen", len(resultJSON), "result", resultJSON)
 
-	if result == nil {
-		return nil, fmt.Errorf("browser fetch: nil result for %s", targetURL)
+	var result struct {
+		Data  string `json:"data"`
+		Type  string `json:"type"`
+		Size  int    `json:"size"`
+		Error string `json:"error"`
 	}
-	if errMsg, ok := result["error"].(string); ok && errMsg != "" {
-		return nil, fmt.Errorf("browser fetch: %s", errMsg)
+	if err := json.Unmarshal([]byte(resultJSON), &result); err != nil {
+		return nil, fmt.Errorf("parsing browser fetch result: %w (%s)", err, resultJSON)
 	}
-	dataStr, _ := result["data"].(string)
-	contentType, _ := result["type"].(string)
-	sizeVal, _ := result["size"].(float64)
+	if result.Error != "" {
+		return nil, fmt.Errorf("browser fetch: %s", result.Error)
+	}
+	dataStr := result.Data
+	contentType := result.Type
 
-	log.Info("browser_image: data received", "dataLen", len(dataStr), "size", sizeVal, "contentType", contentType)
+	log.Info("browser_image: data received", "dataLen", len(dataStr), "size", result.Size, "contentType", contentType)
 
 	if dataStr == "" {
-		return nil, fmt.Errorf("browser fetch: empty data (size=%.0f, type=%s, keys=%v) for %s",
-			sizeVal, contentType, mapKeys(result), targetURL)
+		return nil, fmt.Errorf("browser fetch: empty data (size=%d, type=%s) for %s",
+			result.Size, contentType, targetURL)
 	}
 
 	body, err := base64.StdEncoding.DecodeString(dataStr)
