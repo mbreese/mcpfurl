@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
@@ -31,7 +29,7 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 
 	timeout := time.Duration(w.opts.PageLoadTimeoutSecs) * time.Second
 	if timeout == 0 {
-		timeout = 30 * time.Second
+		timeout = 60 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(w.browserCtx, timeout)
 	defer cancel()
@@ -39,59 +37,59 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	ctx, cancel2 := chromedp.NewContext(ctx)
 	defer cancel2()
 
-	// Capture the response body via the Fetch domain's GetResponseBody.
+	// Capture the response metadata and body via network events.
 	var mu sync.Mutex
 	var respBody []byte
 	var respCT string
-	var captured bool
+	var requestID network.RequestID
+	done := make(chan struct{})
 
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch e := ev.(type) {
 		case *network.EventResponseReceived:
-			if e.Response != nil && strings.Contains(e.Response.URL, path.Base(targetURL)) {
+			// Match the main document request (not sub-resources).
+			if e.Type == network.ResourceTypeDocument || e.Type == network.ResourceTypeImage {
 				mu.Lock()
-				if !captured {
-					respCT = e.Response.MimeType
+				if requestID == "" {
+					requestID = e.RequestID
+					if e.Response != nil {
+						respCT = e.Response.MimeType
+					}
 				}
 				mu.Unlock()
 			}
 		case *network.EventLoadingFinished:
 			mu.Lock()
-			if !captured {
+			rid := requestID
+			mu.Unlock()
+			if rid != "" && e.RequestID == rid {
 				go func() {
 					body, err := network.GetResponseBody(e.RequestID).Do(ctx)
+					mu.Lock()
 					if err == nil {
-						mu.Lock()
 						respBody = body
-						captured = true
-						mu.Unlock()
 					}
+					mu.Unlock()
+					close(done)
 				}()
 			}
-			mu.Unlock()
 		}
 	})
 
-	// Navigate to the URL — headless Chrome handles reCAPTCHA/bot detection.
+	// Navigate to the URL — headless Chrome handles bot detection.
+	// Don't wait for DOM — image URLs have no DOM.
 	if err := chromedp.Run(ctx,
 		network.Enable(),
-		fetch.Enable(),
 		chromedp.Navigate(targetURL),
-		chromedp.WaitReady("body", chromedp.ByQuery),
 	); err != nil {
-		// Check if we captured data before the error (e.g. image URLs have no body element).
-		mu.Lock()
-		if captured && len(respBody) > 0 {
-			mu.Unlock()
-		} else {
-			mu.Unlock()
-			return nil, fmt.Errorf("browser navigation to %s: %w", targetURL, err)
-		}
+		return nil, fmt.Errorf("browser navigation to %s: %w", targetURL, err)
 	}
 
-	// Give a moment for LoadingFinished to fire if it hasn't yet.
-	if !captured {
-		time.Sleep(2 * time.Second)
+	// Wait for the response body to be captured or timeout.
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return nil, fmt.Errorf("browser fetch timed out for %s", targetURL)
 	}
 
 	mu.Lock()
