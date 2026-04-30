@@ -39,12 +39,21 @@ apicurl() {
     BODY=$(cat "$BODY_FILE" 2>/dev/null) || true
 }
 
-# MCP endpoint returns SSE (text/event-stream). Extract JSON from "data: " lines.
+# MCP endpoint returns SSE (text/event-stream) or JSON.
+# Extract JSON from "data:" lines if SSE, otherwise use raw body.
 mcpcurl() {
     local url="$1"; shift
     HTTP_CODE=$(curl -s -o "$BODY_FILE" -w "%{http_code}" -H "$AUTH" -H "Content-Type: application/json" -X POST "$@" "$url" 2>/dev/null) || true
-    # Extract JSON payloads from SSE "data: " lines and join them
-    BODY=$(grep '^data: ' "$BODY_FILE" 2>/dev/null | sed 's/^data: //' | tr '\n' ' ') || true
+    # Debug: show raw response for troubleshooting
+    echo "  [debug] raw response (first 500 chars): $(head -c 500 "$BODY_FILE" 2>/dev/null | cat -v)" >&2
+    # Try SSE "data:" lines first, fall back to raw body
+    local sse_data
+    sse_data=$(sed -n 's/^data: *//p' "$BODY_FILE" 2>/dev/null | tr '\n' ' ') || true
+    if [ -n "$sse_data" ]; then
+        BODY="$sse_data"
+    else
+        BODY=$(cat "$BODY_FILE" 2>/dev/null) || true
+    fi
 }
 
 assert_http_code() {
