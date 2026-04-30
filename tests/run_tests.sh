@@ -14,6 +14,7 @@ TESTWEB="http://testweb"  # internal docker network hostname
 PASS=0
 FAIL=0
 ERRORS=""
+HTTP_CODE=""
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -33,9 +34,12 @@ apicurl() {
     local url="$1"; shift
     local tmpfile
     tmpfile=$(mktemp)
-    HTTP_CODE=$(curl -sf -o "$tmpfile" -w '%{http_code}' -H "$AUTH" "$@" "$url" 2>/dev/null) || HTTP_CODE=$(curl -so "$tmpfile" -w '%{http_code}' -H "$AUTH" "$@" "$url" 2>/dev/null)
+    local codefile
+    codefile=$(mktemp)
+    curl -so "$tmpfile" -w '%{http_code}' -H "$AUTH" "$@" "$url" > "$codefile" 2>/dev/null || true
+    HTTP_CODE=$(cat "$codefile")
     cat "$tmpfile"
-    rm -f "$tmpfile"
+    rm -f "$tmpfile" "$codefile"
 }
 
 assert_http_code() {
