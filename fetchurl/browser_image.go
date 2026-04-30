@@ -86,11 +86,20 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 		return nil, fmt.Errorf("browser fetch of %s: %w", targetURL, err)
 	}
 
+	if result == nil {
+		return nil, fmt.Errorf("browser fetch: nil result for %s", targetURL)
+	}
 	if errMsg, ok := result["error"].(string); ok && errMsg != "" {
 		return nil, fmt.Errorf("browser fetch: %s", errMsg)
 	}
 	dataStr, _ := result["data"].(string)
 	contentType, _ := result["type"].(string)
+	sizeVal, _ := result["size"].(float64) // JSON numbers are float64
+
+	if dataStr == "" {
+		return nil, fmt.Errorf("browser fetch: empty data (size=%.0f, type=%s, keys=%v) for %s",
+			sizeVal, contentType, mapKeys(result), targetURL)
+	}
 
 	body, err := base64.StdEncoding.DecodeString(dataStr)
 	if err != nil {
@@ -98,7 +107,7 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	}
 
 	if len(body) == 0 {
-		return nil, fmt.Errorf("browser fetch: empty response body for %s", targetURL)
+		return nil, fmt.Errorf("browser fetch: empty decoded body for %s", targetURL)
 	}
 
 	// Validate it's actually an image, not an HTML error page.
@@ -117,6 +126,14 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 		ContentType: contentType,
 		Body:        body,
 	}, nil
+}
+
+func mapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func isImageContentType(ct string) bool {
