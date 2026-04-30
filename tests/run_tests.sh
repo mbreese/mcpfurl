@@ -39,6 +39,14 @@ apicurl() {
     BODY=$(cat "$BODY_FILE" 2>/dev/null) || true
 }
 
+# MCP endpoint returns SSE (text/event-stream). Extract JSON from "data: " lines.
+mcpcurl() {
+    local url="$1"; shift
+    HTTP_CODE=$(curl -s -o "$BODY_FILE" -w "%{http_code}" -H "$AUTH" -H "Content-Type: application/json" -X POST "$@" "$url" 2>/dev/null) || true
+    # Extract JSON payloads from SSE "data: " lines and join them
+    BODY=$(grep '^data: ' "$BODY_FILE" 2>/dev/null | sed 's/^data: //' | tr '\n' ' ') || true
+}
+
 assert_http_code() {
     local test_name="$1" expected="$2"
     if [ "$HTTP_CODE" = "$expected" ]; then
@@ -194,13 +202,13 @@ echo "=== MCP Protocol: /mcp ==="
 # MCP initialize + list tools
 MCP_INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
 
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_INIT"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_INIT"
 assert_http_code "MCP initialize" "200"
 assert_contains "MCP returns server info" "$BODY" "mcpfurl"
 
 # List tools
 MCP_LIST='{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_LIST"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_LIST"
 assert_http_code "MCP tools/list" "200"
 assert_contains "MCP has web_fetch tool" "$BODY" "web_fetch"
 assert_contains "MCP has image_fetch tool" "$BODY" "image_fetch"
@@ -212,13 +220,13 @@ echo ""
 echo "=== MCP Tool: web_fetch ==="
 
 MCP_FETCH='{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"web_fetch","arguments":{"url":"'"${TESTWEB}"'/index.html"}}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_FETCH"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_FETCH"
 assert_http_code "MCP web_fetch" "200"
 assert_contains "MCP web_fetch returns content" "$BODY" "Hello from mcpfurl test server"
 
 # web_fetch with missing URL
 MCP_FETCH_NOURL='{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"web_fetch","arguments":{"url":""}}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_FETCH_NOURL"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_FETCH_NOURL"
 assert_http_code "MCP web_fetch empty url" "200"
 assert_contains "MCP web_fetch error on empty url" "$BODY" "Missing URL"
 
@@ -227,14 +235,14 @@ echo ""
 echo "=== MCP Tool: image_fetch ==="
 
 MCP_IMAGE='{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"image_fetch","arguments":{"url":"'"${TESTWEB}"'/image.png"}}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_IMAGE"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_IMAGE"
 assert_http_code "MCP image_fetch" "200"
 assert_contains "MCP image_fetch has base64 data" "$BODY" "data_base64"
 assert_contains "MCP image_fetch has content_type" "$BODY" "content_type"
 
 # image_fetch with missing URL
 MCP_IMAGE_NOURL='{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"image_fetch","arguments":{"url":""}}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_IMAGE_NOURL"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_IMAGE_NOURL"
 assert_http_code "MCP image_fetch empty url" "200"
 assert_contains "MCP image_fetch error on empty url" "$BODY" "Missing URL"
 
@@ -243,7 +251,7 @@ echo ""
 echo "=== MCP Tool: browser_image_fetch ==="
 
 MCP_BIMG='{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"browser_image_fetch","arguments":{"url":"'"${TESTWEB}"'/image.png"}}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_BIMG"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_BIMG"
 assert_http_code "MCP browser_image_fetch" "200"
 assert_contains "MCP browser_image_fetch has base64 data" "$BODY" "data_base64"
 
@@ -252,7 +260,7 @@ echo ""
 echo "=== MCP Tool: web_search ==="
 
 MCP_SEARCH_NOQUERY='{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"web_search","arguments":{"query":""}}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_SEARCH_NOQUERY"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_SEARCH_NOQUERY"
 # web_search may not be registered (no API keys), so 200 with error is fine
 if [ "$HTTP_CODE" = "200" ]; then
     pass "MCP web_search empty query (HTTP $HTTP_CODE)"
@@ -266,7 +274,7 @@ echo ""
 echo "=== MCP Tool: web_summary ==="
 
 MCP_SUMMARY_NOURL='{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"web_summary","arguments":{"url":""}}}'
-apicurl "$BASE_URL/mcp" -X POST -H "Content-Type: application/json" -d "$MCP_SUMMARY_NOURL"
+mcpcurl "$BASE_URL/mcp" -d "$MCP_SUMMARY_NOURL"
 assert_http_code "MCP web_summary empty url" "200"
 assert_contains "MCP web_summary error on empty url" "$BODY" "Missing"
 
