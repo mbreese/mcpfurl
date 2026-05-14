@@ -66,6 +66,37 @@ func (w *WebFetcher) BrowserDownloadFile(ctx context.Context, targetURL, warmupU
 	_ = chromedp.Run(ctx, chromedp.Location(&currentURL))
 	log.Info("browser_file_download: page loaded", "currentURL", currentURL)
 
+	// Wait for JS challenges (Cloudflare, CAPTCHAs, proof-of-work) to complete.
+	// These typically run JavaScript that eventually redirects to the real page.
+	// Poll the URL every 2 seconds for up to 30 seconds, stopping early once
+	// the URL has been stable for 4 seconds.
+	stableURL := currentURL
+	stableSince := time.Now()
+	deadline := time.Now().Add(30 * time.Second)
+
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			log.Warn("browser_file_download: context cancelled while waiting for JS challenges")
+			return nil, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+
+		var newURL string
+		if err := chromedp.Run(ctx, chromedp.Location(&newURL)); err != nil {
+			break
+		}
+
+		if newURL != stableURL {
+			log.Info("browser_file_download: URL changed (JS redirect)", "from", stableURL, "to", newURL)
+			stableURL = newURL
+			stableSince = time.Now()
+		} else if time.Since(stableSince) >= 4*time.Second {
+			log.Info("browser_file_download: URL stable, proceeding", "url", stableURL)
+			break
+		}
+	}
+
 	// From the page context (with cookies), fetch the file via sync XHR.
 	log.Info("browser_file_download: fetching file via sync XHR", "targetURL", targetURL)
 
