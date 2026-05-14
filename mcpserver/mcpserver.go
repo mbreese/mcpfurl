@@ -65,7 +65,8 @@ type ImageFetchOutput struct {
 }
 
 type FileFetchParams struct {
-	URL string `json:"url" jsonschema:"The URL of the file to download (PDF, ZIP, etc.)"`
+	URL       string `json:"url" jsonschema:"The URL of the file to download (PDF, ZIP, etc.)"`
+	WarmupURL string `json:"warmup_url,omitempty" jsonschema:"Optional page to navigate to first to establish cookies/pass bot detection before downloading the file"`
 }
 
 type FileFetchOutput struct {
@@ -303,8 +304,8 @@ func browserFetchFile(ctx context.Context, req *mcp.CallToolRequest, args FileFe
 		}, &FileFetchOutput{Error: "Missing URL"}, nil
 	}
 
-	logger.Info(fmt.Sprintf("Browser downloading file: %s", args.URL))
-	resource, err := fetcher.BrowserDownloadFile(ctx, args.URL)
+	logger.Info(fmt.Sprintf("Browser downloading file: %s (warmup: %s)", args.URL, args.WarmupURL))
+	resource, err := fetcher.BrowserDownloadFile(ctx, args.URL, args.WarmupURL)
 	if err != nil {
 		return &mcp.CallToolResult{
 			IsError: true,
@@ -612,20 +613,22 @@ func apiFileDownload(w http.ResponseWriter, r *http.Request) {
 	w.Write(resource.Body)
 }
 
-// apiBrowserFileDownload handles GET /api/browser-file?url=...
+// apiBrowserFileDownload handles GET /api/browser-file?url=...&warmup_url=...
 // Uses headless Chrome to bypass bot detection, returns raw binary file.
+// Optional warmup_url: page to navigate to first to establish cookies.
 func apiBrowserFileDownload(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.Query().Get("url")
 	if url == "" {
 		http.Error(w, `{"error":"missing url parameter"}`, http.StatusBadRequest)
 		return
 	}
+	warmupURL := r.URL.Query().Get("warmup_url")
 	if fetcher == nil {
 		http.Error(w, `{"error":"fetcher not initialized"}`, http.StatusServiceUnavailable)
 		return
 	}
-	logger.Info(fmt.Sprintf("API browser_file_download: %s", url))
-	resource, err := fetcher.BrowserDownloadFile(r.Context(), url)
+	logger.Info(fmt.Sprintf("API browser_file_download: %s (warmup: %s)", url, warmupURL))
+	resource, err := fetcher.BrowserDownloadFile(r.Context(), url, warmupURL)
 	if err != nil {
 		writeJSONError(w, http.StatusBadGateway, err.Error())
 		return

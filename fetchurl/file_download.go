@@ -15,7 +15,11 @@ import (
 // BrowserDownloadFile fetches a binary resource using headless Chrome.
 // Unlike BrowserDownloadResource, this does not validate that the response
 // is an image — it accepts any content type (PDF, ZIP, etc.).
-func (w *WebFetcher) BrowserDownloadFile(ctx context.Context, targetURL string) (*DownloadedResource, error) {
+//
+// If warmupURL is non-empty, Chrome navigates there first to establish
+// cookies and pass bot-detection challenges before fetching the target file.
+// Otherwise it navigates to the host root of targetURL.
+func (w *WebFetcher) BrowserDownloadFile(ctx context.Context, targetURL, warmupURL string) (*DownloadedResource, error) {
 	log := slog.Default()
 
 	if targetURL == "" {
@@ -38,20 +42,24 @@ func (w *WebFetcher) BrowserDownloadFile(ctx context.Context, targetURL string) 
 	ctx, cancel2 := chromedp.NewContext(ctx)
 	defer cancel2()
 
-	// Navigate to the host's root page to establish cookies/pass challenges.
-	hostPage := targetURL
-	if i := nthIndex(targetURL, '/', 3); i > 0 {
-		hostPage = targetURL[:i] + "/"
+	// Navigate to a warmup page to establish cookies/pass challenges.
+	// Use the provided warmup URL, or fall back to the host root.
+	navPage := warmupURL
+	if navPage == "" {
+		navPage = targetURL
+		if i := nthIndex(targetURL, '/', 3); i > 0 {
+			navPage = targetURL[:i] + "/"
+		}
 	}
 
-	log.Info("browser_file_download: navigating to host page", "hostPage", hostPage, "targetURL", targetURL)
+	log.Info("browser_file_download: navigating to warmup page", "navPage", navPage, "targetURL", targetURL)
 
 	if err := chromedp.Run(ctx,
-		chromedp.Navigate(hostPage),
+		chromedp.Navigate(navPage),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 	); err != nil {
-		log.Error("browser_file_download: navigation failed", "hostPage", hostPage, "error", err)
-		return nil, fmt.Errorf("browser navigation to %s: %w", hostPage, err)
+		log.Error("browser_file_download: navigation failed", "navPage", navPage, "error", err)
+		return nil, fmt.Errorf("browser navigation to %s: %w", navPage, err)
 	}
 
 	var currentURL string
