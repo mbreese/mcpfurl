@@ -6,6 +6,7 @@ name: Build Binaries
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
 
 env:
   REGISTRY: ghcr.io
@@ -193,3 +194,26 @@ jobs:
       #     tags: ${{ steps.meta.outputs.tags }}
       #     labels: ${{ steps.meta.outputs.labels }}
       #     platforms: linux/arm64
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-macos, build-linux-amd64, build-linux-arm64, integration-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/mcpfurl.macos_all/mcpfurl.macos_all
+            artifacts/mcpfurl.macos_amd64/mcpfurl.macos_amd64
+            artifacts/mcpfurl.macos_arm64/mcpfurl.macos_arm64
+            artifacts/mcpfurl.linux_musl_amd64/mcpfurl.linux_musl_amd64
+            artifacts/mcpfurl.linux_musl_arm64/mcpfurl.linux_musl_arm64
