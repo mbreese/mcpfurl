@@ -455,16 +455,18 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(targetURL),
 		chromedp.Evaluate(`
-		const links = document.body.querySelectorAll('a');
-		const images = document.body.querySelectorAll('img');
-		links.forEach(link => {
-			const abshref = link.href;
-			link.setAttribute('href', abshref);
+		if (document.body) {
+			const links = document.body.querySelectorAll('a');
+			const images = document.body.querySelectorAll('img');
+			links.forEach(link => {
+				const abshref = link.href;
+				link.setAttribute('href', abshref);
 			});
-		images.forEach(img => {
-			const abssrc = img.src;
-			img.setAttribute('src', abssrc);
+			images.forEach(img => {
+				const abssrc = img.src;
+				img.setAttribute('src', abssrc);
 			});
+		}
     	`, nil),
 		chromedp.OuterHTML(selector, &htmlSrc, chromedp.ByQuery),
 		chromedp.Title(&title),
