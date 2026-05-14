@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -148,6 +149,12 @@ func (w *WebFetcher) BrowserDownloadFile(ctx context.Context, targetURL, warmupU
 	if result.Data == "" {
 		return nil, fmt.Errorf("browser fetch: empty data (size=%d, type=%s) for %s",
 			result.Size, result.Type, targetURL)
+	}
+
+	// If the response is HTML, we likely hit a challenge page or landing page
+	// rather than the actual file.
+	if strings.HasPrefix(result.Type, "text/html") {
+		return nil, fmt.Errorf("browser fetch returned HTML instead of a file (content-type: %s) for %s — the page may require manual interaction", result.Type, targetURL)
 	}
 
 	body, err := base64.StdEncoding.DecodeString(result.Data)
