@@ -64,6 +64,18 @@ type ImageFetchOutput struct {
 	Error       string `json:"error,omitempty" jsonschema:"Any error messages"`
 }
 
+type FileFetchParams struct {
+	URL string `json:"url" jsonschema:"The URL of the file to download (PDF, ZIP, etc.)"`
+}
+
+type FileFetchOutput struct {
+	Filename    string `json:"filename,omitempty" jsonschema:"The detected filename from the URL path"`
+	ContentType string `json:"content_type,omitempty" jsonschema:"The Content-Type header returned by the server"`
+	SizeBytes   int    `json:"size_bytes" jsonschema:"The size of the downloaded file in bytes"`
+	DataBase64  string `json:"data_base64" jsonschema:"Base64 encoded binary of the downloaded file"`
+	Error       string `json:"error,omitempty" jsonschema:"Any error messages"`
+}
+
 type MCPServerOptions struct {
 	Addr           string
 	Port           int
@@ -252,6 +264,64 @@ func browserFetchImage(ctx context.Context, req *mcp.CallToolRequest, args Image
 }
 
 
+func fetchFile(ctx context.Context, req *mcp.CallToolRequest, args FileFetchParams) (*mcp.CallToolResult, *FileFetchOutput, error) {
+	if args.URL == "" {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "Missing URL"},
+			},
+		}, &FileFetchOutput{Error: "Missing URL"}, nil
+	}
+
+	logger.Info(fmt.Sprintf("Downloading file: %s", args.URL))
+	resource, err := fetcher.DownloadResource(ctx, args.URL)
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: err.Error()},
+			},
+		}, &FileFetchOutput{Error: err.Error()}, nil
+	}
+
+	return nil, &FileFetchOutput{
+		Filename:    resource.Filename,
+		ContentType: resource.ContentType,
+		SizeBytes:   len(resource.Body),
+		DataBase64:  base64.StdEncoding.EncodeToString(resource.Body),
+	}, nil
+}
+
+func browserFetchFile(ctx context.Context, req *mcp.CallToolRequest, args FileFetchParams) (*mcp.CallToolResult, *FileFetchOutput, error) {
+	if args.URL == "" {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "Missing URL"},
+			},
+		}, &FileFetchOutput{Error: "Missing URL"}, nil
+	}
+
+	logger.Info(fmt.Sprintf("Browser downloading file: %s", args.URL))
+	resource, err := fetcher.BrowserDownloadFile(ctx, args.URL)
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: err.Error()},
+			},
+		}, &FileFetchOutput{Error: err.Error()}, nil
+	}
+
+	return nil, &FileFetchOutput{
+		Filename:    resource.Filename,
+		ContentType: resource.ContentType,
+		SizeBytes:   len(resource.Body),
+		DataBase64:  base64.StdEncoding.EncodeToString(resource.Body),
+	}, nil
+}
+
 func addCrawlResources(server *mcp.Server, fetcher *fetchurl.WebFetcher, crawlCfg []CrawlResourceConfig) {
 	if fetcher == nil || len(crawlCfg) == 0 {
 		return
@@ -350,6 +420,16 @@ func createMCPServer(mcpOpts MCPServerOptions, fetcher *fetchurl.WebFetcher) *mc
 			Description: "Download an image using headless Chrome (bypasses bot detection/reCAPTCHA). Returns base64 data.",
 		}, browserFetchImage)
 	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "file_download",
+		Description: "Download a file (PDF, ZIP, etc.) via HTTP and return it as base64 data",
+	}, fetchFile)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "browser_file_download",
+		Description: "Download a file using headless Chrome (bypasses bot detection/redirects). Returns base64 data.",
+	}, browserFetchFile)
 
 	if !mcpOpts.DisableSummary {
 		mcp.AddTool(server, &mcp.Tool{
@@ -505,6 +585,60 @@ func apiBrowserImageFetch(w http.ResponseWriter, r *http.Request) {
 	w.Write(resource.Body)
 }
 
+// apiFileDownload handles GET /api/file?url=...
+// Returns the raw binary file (proxied).
+func apiFileDownload(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, `{"error":"missing url parameter"}`, http.StatusBadRequest)
+		return
+	}
+	if fetcher == nil {
+		http.Error(w, `{"error":"fetcher not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+	logger.Info(fmt.Sprintf("API file_download: %s", url))
+	resource, err := fetcher.DownloadResource(r.Context(), url)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if resource.ContentType != "" {
+		w.Header().Set("Content-Type", resource.ContentType)
+	}
+	if resource.Filename != "" {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", resource.Filename))
+	}
+	w.Write(resource.Body)
+}
+
+// apiBrowserFileDownload handles GET /api/browser-file?url=...
+// Uses headless Chrome to bypass bot detection, returns raw binary file.
+func apiBrowserFileDownload(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, `{"error":"missing url parameter"}`, http.StatusBadRequest)
+		return
+	}
+	if fetcher == nil {
+		http.Error(w, `{"error":"fetcher not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+	logger.Info(fmt.Sprintf("API browser_file_download: %s", url))
+	resource, err := fetcher.BrowserDownloadFile(r.Context(), url)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if resource.ContentType != "" {
+		w.Header().Set("Content-Type", resource.ContentType)
+	}
+	if resource.Filename != "" {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", resource.Filename))
+	}
+	w.Write(resource.Body)
+}
+
 // apiWebSearch handles GET /api/search?q=...
 // Returns search results as JSON.
 func apiWebSearch(w http.ResponseWriter, r *http.Request) {
@@ -593,6 +727,8 @@ func StartHTTP(opts fetchurl.WebFetcherOptions, mcpOpts MCPServerOptions) {
 		mux.Handle("/api/summary", authWrapper(http.HandlerFunc(apiWebSummary)))
 		mux.Handle("/api/image", authWrapper(http.HandlerFunc(apiImageFetch)))
 		mux.Handle("/api/browser-image", authWrapper(http.HandlerFunc(apiBrowserImageFetch)))
+		mux.Handle("/api/file", authWrapper(http.HandlerFunc(apiFileDownload)))
+		mux.Handle("/api/browser-file", authWrapper(http.HandlerFunc(apiBrowserFileDownload)))
 		mux.Handle("/api/search", authWrapper(http.HandlerFunc(apiWebSearch)))
 	}
 
