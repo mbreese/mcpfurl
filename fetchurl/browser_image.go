@@ -43,6 +43,11 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	ctx, cancel2 := chromedp.NewContext(ctx)
 	defer cancel2()
 
+	// Inject anti-detection scripts before any navigation.
+	if err := chromedp.Run(ctx, stealthSetup()); err != nil {
+		return nil, fmt.Errorf("stealth setup: %w", err)
+	}
+
 	// Step 1: Navigate to the host's root page to establish cookies/pass challenges.
 	// We can't navigate to the image URL directly because raw images have no DOM.
 	hostPage := targetURL

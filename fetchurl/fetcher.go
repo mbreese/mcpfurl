@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
 
@@ -105,6 +106,9 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		chromedp.Flag("no-sandbox", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
 		chromedp.Flag("disable-breakpad", true),
+		chromedp.Flag("disable-blink-features", "AutomationControlled"),
+		chromedp.Flag("lang", "en-US,en"),
+		chromedp.UserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
 	)
 
 	// Look for a Chrome/Chromium binary in order of preference:
@@ -166,6 +170,46 @@ func (w *WebFetcher) Start() error {
 		return fmt.Errorf("service already stopped")
 	}
 	return nil
+}
+
+// stealthSetup returns a chromedp.Action that injects anti-detection scripts
+// via Page.addScriptToEvaluateOnNewDocument. This must be run once per browser
+// context, before any navigation — it applies to all subsequent page loads.
+func stealthSetup() chromedp.Action {
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		_, err := page.AddScriptToEvaluateOnNewDocument(`
+// Spoof navigator.plugins (empty in headless)
+Object.defineProperty(navigator, 'plugins', {
+	get: () => {
+		const arr = [
+			{ name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+			{ name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+			{ name: 'Native Client', filename: 'internal-nacl-plugin', description: '' },
+		];
+		arr.item = i => arr[i];
+		arr.namedItem = n => arr.find(p => p.name === n);
+		arr.refresh = () => {};
+		return arr;
+	},
+});
+
+// Ensure window.chrome exists with runtime stub
+if (!window.chrome) { window.chrome = {}; }
+if (!window.chrome.runtime) { window.chrome.runtime = {}; }
+
+// Fix Permissions.query for notifications (headless returns "denied" instantly)
+if (window.Permissions && Permissions.prototype.query) {
+	const origQuery = Permissions.prototype.query;
+	Permissions.prototype.query = function(params) {
+		if (params.name === 'notifications') {
+			return Promise.resolve({ state: Notification.permission });
+		}
+		return origQuery.call(this, params);
+	};
+}
+`).Do(ctx)
+		return err
+	})
 }
 
 // func (w *WebFetcher) startSelenium() (selenium.WebDriver, error) {
@@ -453,6 +497,7 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 	var currentUrl string
 
 	if err := chromedp.Run(ctx,
+		stealthSetup(),
 		chromedp.Navigate(targetURL),
 		chromedp.Evaluate(`
 		if (document.body) {
@@ -522,6 +567,7 @@ func (w *WebFetcher) FetchURLPNG(ctx context.Context, targetURL string, selector
 	}
 
 	if err := chromedp.Run(ctx,
+		stealthSetup(),
 		chromedp.Navigate(targetURL),
 		act,
 	); err != nil {

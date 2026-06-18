@@ -43,6 +43,11 @@ func (w *WebFetcher) BrowserDownloadFile(ctx context.Context, targetURL, warmupU
 	ctx, cancel2 := chromedp.NewContext(ctx)
 	defer cancel2()
 
+	// Inject anti-detection scripts before any navigation.
+	if err := chromedp.Run(ctx, stealthSetup()); err != nil {
+		return nil, fmt.Errorf("stealth setup: %w", err)
+	}
+
 	// Navigate to a warmup page to establish cookies/pass challenges.
 	// Use the provided warmup URL, or fall back to the host root.
 	navPage := warmupURL
