@@ -12,7 +12,7 @@ WORKDIR /app
 COPY --from=chrome /headless-shell /headless-shell
 RUN apt update && \
     apt -y upgrade && \
-    apt install -y sqlite3 curl fontconfig libnss3 libatk1.0-0 \
+    apt install -y tini sqlite3 curl fontconfig libnss3 libatk1.0-0 \
         libatk-bridge2.0-0 libcups2 libxdamage1 libpango-1.0-0 \
         libcairo2 libasound2 libxrandr2 libxcomposite1 libxshmfence1 \
         libgbm1 && \
@@ -26,4 +26,7 @@ RUN chmod +x /app/mcpfurl
 
 USER user
 
-CMD /app/mcpfurl mcp-http
+# tini runs as PID 1 to reap orphaned Chrome helper processes (zygote,
+# renderer, GPU, utility) that otherwise accumulate as zombies.
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/app/mcpfurl", "mcp-http"]

@@ -37,11 +37,11 @@ func (w *WebFetcher) BrowserDownloadResource(ctx context.Context, targetURL stri
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	ctx, cancel := context.WithTimeout(w.browserCtx, timeout)
-	defer cancel()
 
-	ctx, cancel2 := chromedp.NewContext(ctx)
-	defer cancel2()
+	tabCtx, tabCancel := chromedp.NewContext(w.browserCtx)
+	defer tabCancel()
+	ctx, cancel := context.WithTimeout(tabCtx, timeout)
+	defer cancel()
 
 	// Inject anti-detection scripts before any navigation.
 	if err := chromedp.Run(ctx, stealthSetup()); err != nil {

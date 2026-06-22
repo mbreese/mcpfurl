@@ -15,8 +15,14 @@ import (
 type WebFetcher struct {
 	// service *selenium.Service
 	// wd      *selenium.WebDriver
-	opts       WebFetcherOptions
-	done       bool
+	opts WebFetcherOptions
+	done bool
+	// allocCtx is the chromedp exec allocator. Cancelling it tears down
+	// everything (browser + tabs). browserCtx is a long-lived child of
+	// allocCtx that owns a single shared headless-shell process; per-request
+	// tab contexts are derived from it so we don't relaunch Chrome each call.
+	allocCtx   context.Context
+	allocCan   context.CancelFunc
 	browserCtx context.Context
 	browserCan context.CancelFunc
 	// lock   sync.Mutex
@@ -136,12 +142,22 @@ func NewWebFetcher(opts WebFetcherOptions) (*WebFetcher, error) {
 		allocOpts = append(allocOpts, chromedp.ExecPath(chromePath))
 	}
 
-	browserCtx, browserCan := chromedp.NewExecAllocator(context.Background(), allocOpts...)
+	allocCtx, allocCan := chromedp.NewExecAllocator(context.Background(), allocOpts...)
+
+	// Launch a single browser up front; tabs are derived from this context.
+	browserCtx, browserCan := chromedp.NewContext(allocCtx)
+	if err := chromedp.Run(browserCtx); err != nil {
+		browserCan()
+		allocCan()
+		return nil, fmt.Errorf("starting headless browser: %w", err)
+	}
 
 	return &WebFetcher{
 		opts:       opts,
 		search:     search,
 		cache:      cache,
+		allocCtx:   allocCtx,
+		allocCan:   allocCan,
 		browserCtx: browserCtx,
 		browserCan: browserCan,
 	}, nil
@@ -157,6 +173,9 @@ func (w *WebFetcher) Stop() {
 	// }
 	if w.browserCan != nil {
 		w.browserCan()
+	}
+	if w.allocCan != nil {
+		w.allocCan()
 	}
 	if w.cache != nil {
 		w.cache.Close()
@@ -456,11 +475,10 @@ func (w *WebFetcher) SearchJSON(ctx context.Context, query string) ([]SearchResu
 
 func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector string) (*FetchedWebPage, error) {
 
-	ctx, cancel := context.WithTimeout(w.browserCtx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
-	ctx, cancel2 := chromedp.NewContext(ctx)
-
+	tabCtx, tabCancel := chromedp.NewContext(w.browserCtx)
+	defer tabCancel()
+	ctx, cancel := context.WithTimeout(tabCtx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
 	defer cancel()
-	defer cancel2()
 
 	// check allow/disallow lists first
 	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.DenyURLGlobs); err != nil {
@@ -534,11 +552,10 @@ func (w *WebFetcher) FetchURL(ctx context.Context, targetURL string, selector st
 
 func (w *WebFetcher) FetchURLPNG(ctx context.Context, targetURL string, selector string) ([]byte, error) {
 
-	ctx, cancel := context.WithTimeout(w.browserCtx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
-	ctx, cancel2 := chromedp.NewContext(ctx)
-
+	tabCtx, tabCancel := chromedp.NewContext(w.browserCtx)
+	defer tabCancel()
+	ctx, cancel := context.WithTimeout(tabCtx, time.Duration(w.opts.PageLoadTimeoutSecs)*time.Second)
 	defer cancel()
-	defer cancel2()
 
 	// check allow/disallow lists first
 	if allowed, err := ensureURLAllowed(targetURL, w.opts.AllowedURLGlobs, w.opts.DenyURLGlobs); err != nil {
